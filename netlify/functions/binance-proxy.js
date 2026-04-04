@@ -5,14 +5,45 @@ exports.handler = async (event, context) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'symbol required' }) };
   }
 
-  // Use api1.binance.com — works from AWS Lambda / Netlify regions
-  const binanceBase = 'https://api1.binance.com/api/v3';
+  // Bybit has no geo-restrictions, works from AWS Lambda/Netlify
+  const bybitBase = 'https://api.bybit.com/v5/market';
 
   try {
-    const results = await Promise.all([
-      fetch(`${binanceBase}/ticker/price?symbol=${symbol}`).then(r => r.json()),
-      fetch(`${binanceBase}/klines?symbol=${symbol}&interval=1m&limit=10`).then(r => r.json()),
-      fetch(`${binanceBase}/klines?symbol=${symbol}&interval=5m&limit=1`).then(r => r.json()),
+    // Fetch price
+    const priceResp = await fetch(`${bybitBase}/tickers?category=spot&symbol=${symbol}`);
+    const priceData = await priceResp.json();
+
+    if (priceData.retCode !== 0 || !priceData.result?.list?.[0]) {
+      return { statusCode: 500, body: JSON.stringify({ error: 'Bybit price fetch failed' }) };
+    }
+
+    const ticker = priceData.result.list[0];
+    const currentPrice = ticker.lastPrice;
+
+    // Fetch 1m klines (last 10 candles)
+    const klines1mResp = await fetch(
+      `${bybitBase}/kline?category=spot&symbol=${symbol}&interval=1&limit=10`
+    );
+    const klines1mData = await klines1mResp.json();
+
+    // Bybit format: [time, open, high, low, close, volume, turnover]
+    const klines1m = (klines1mData.result?.list || []).reverse().map(k => [
+      parseInt(k[0]),
+      k[1], // open
+      k[2], // high
+      k[3], // low
+      k[4], // close
+      k[5], // volume
+    ]);
+
+    // Fetch 5m kline for ref price
+    const klines5mResp = await fetch(
+      `${bybitBase}/kline?category=spot&symbol=${symbol}&interval=5&limit=1`
+    );
+    const klines5mData = await klines5mResp.json();
+    const klines5m = (klines5mData.result?.list || []).map(k => [
+      parseInt(k[0]),
+      k[1], k[2], k[3], k[4], k[5],
     ]);
 
     return {
@@ -22,9 +53,9 @@ exports.handler = async (event, context) => {
         'Access-Control-Allow-Origin': '*',
       },
       body: JSON.stringify({
-        priceData: results[0],
-        klines1m: results[1],
-        klines5m: results[2],
+        priceData: { symbol, price: currentPrice },
+        klines1m,
+        klines5m,
       }),
     };
   } catch (err) {
