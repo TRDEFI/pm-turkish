@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 const COINS = [
-  { symbol: 'BTCUSDT', short: 'BTC', name: 'Bitcoin', decimals: 2, accent: '#f7931a', symbolChar: '₿' },
-  { symbol: 'ETHUSDT', short: 'ETH', name: 'Ethereum', decimals: 2, accent: '#627eea', symbolChar: 'Ξ' },
-  { symbol: 'XRPUSDT', short: 'XRP', name: 'Ripple', decimals: 4, accent: '#00aae4', symbolChar: '✕' },
+  { symbol: 'BTCUSDT', short: 'BTC', name: 'Bitcoin', decimals: 2, accent: '#f7931a', symbolChar: '₿', yRange: 100 },
+  { symbol: 'ETHUSDT', short: 'ETH', name: 'Ethereum', decimals: 2, accent: '#627eea', symbolChar: 'Ξ', yRange: 50 },
+  { symbol: 'XRPUSDT', short: 'XRP', name: 'Ripple', decimals: 4, accent: '#00aae4', symbolChar: '✕', yRange: 0.005 },
 ];
 
 const GREEN = '#22c55e';
@@ -16,7 +16,7 @@ function secondsRemaining() {
 }
 
 /* ─── Chart ─── */
-function MiniChart({ candles, chartH = 180, refPrice, accent }) {
+function MiniChart({ candles, chartH = 180, refPrice, accent, coinYRange }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -41,12 +41,10 @@ function MiniChart({ candles, chartH = 180, refPrice, accent }) {
     const lastClose = closes[closes.length - 1];
     const rawMin = Math.min(...closes);
     const rawMax = Math.max(...closes);
-    const rawRange = rawMax - rawMin;
-    // Force minimum 2% Y-axis range (0.02) so XRP ($1.31) price movement is visible
-    const minRange = Math.max(rawRange, Math.abs(lastClose) * 0.02);
-    const halfRange = minRange / 2;
-    const pady = Math.max(halfRange * 0.4, Math.abs(lastClose) * 0.002);
+    // Fixed Y-axis range per coin: BTC=±$100, ETH=±$50, XRP=±$0.005
+    const halfRange = (coinYRange || Math.abs(lastClose) * 0.02) / 2;
     const centerY = (rawMin + rawMax) / 2;
+    const pady = halfRange * 0.3;
     const yMin = centerY - halfRange - pady;
     const yMax = centerY + halfRange + pady;
     const yRange = yMax - yMin;
@@ -149,13 +147,132 @@ function MiniChart({ candles, chartH = 180, refPrice, accent }) {
     ctx.fillStyle = accent; ctx.fill();
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
 
-  }, [candles, chartH, refPrice, accent]);
+  }, [candles, chartH, refPrice, accent, coinYRange]);
 
   return <canvas ref={canvasRef} className="w-full" style={{ height: chartH + 'px' }} />;
 }
 
+/* ─── Trade Modal ─── */
+function TradeModal({ coin, direction, price, onClose }) {
+  const [amount, setAmount] = useState('');
+  const overlayRef = useRef(null);
+
+  const total = amount ? (parseFloat(amount) * price).toFixed(2) : '—';
+
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+    >
+      <div className="bg-[#1a1d28] rounded-2xl border border-slate-700/50 w-[380px] max-w-[95vw] overflow-hidden shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-700/50">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: coin.accent }}>
+              {coin.symbolChar}
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-white">{coin.name}</div>
+              <div className="text-[10px] text-slate-500">{coin.short}/USDT</div>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-white text-xl leading-none transition-colors">×</button>
+        </div>
+
+        {/* Direction Badge */}
+        <div className="px-5 pt-4">
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+            direction === 'up' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+          }`}>
+            {direction === 'up' ? '▲ YUKARI' : '▼ ASAGI'}
+          </div>
+        </div>
+
+        {/* Price Info */}
+        <div className="px-5 pt-3 pb-4">
+          <div className="text-xl font-bold text-white">${price.toLocaleString('en-US', { minimumFractionDigits: coin.decimals, maximumFractionDigits: coin.decimals })}</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Canlı piyasa fiyatı</div>
+        </div>
+
+        {/* Currency Selector */}
+        <div className="px-5 pb-3">
+          <label className="text-xs text-slate-400 mb-1.5 block">Ödeme Yöntemi</label>
+          <div className="flex gap-2">
+            {[
+              { name: 'USDT', icon: '₮', bg: '#26a17b' },
+              { name: 'USDC', icon: '$', bg: '#2775ca' },
+              { name: 'DAI', icon: '◈', bg: '#f5af31' },
+            ].map((c, i) => (
+              <div
+                key={c.name}
+                className={`flex-1 flex items-center gap-1.5 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+                  i === 0 ? 'border-green-500/50 bg-green-500/5' : 'border-slate-700/50 bg-slate-800/50'
+                }`}
+              >
+                <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold" style={{ backgroundColor: c.bg }}>
+                  {c.icon}
+                </div>
+                <span className="text-xs font-medium text-slate-300">{c.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Amount Input */}
+        <div className="px-5 pb-4">
+          <label className="text-xs text-slate-400 mb-1.5 block">Miktar Girin (USD)</label>
+          <div className="relative">
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              className="w-full bg-slate-900/80 border border-slate-700/50 rounded-lg px-4 py-2.5 text-white text-sm font-mono placeholder:text-slate-600 focus:border-blue-500 focus:outline-none transition-colors"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">USD</span>
+          </div>
+        </div>
+
+        {/* Estimated Total */}
+        {amount && parseFloat(amount) > 0 && (
+          <div className="mx-5 mb-4 p-3 bg-slate-900/50 rounded-lg border border-slate-700/30">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">Tahmini Değer</span>
+              <span className="text-white font-bold">${total}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="px-5 pb-5 flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-lg border border-slate-700/50 text-slate-400 text-sm font-medium hover:bg-slate-800/50 transition-colors"
+          >
+            İptal
+          </button>
+          <button
+            className="flex-1 py-2.5 rounded-lg text-white text-sm font-bold transition-all hover:opacity-90"
+            style={{
+              background: direction === 'up'
+                ? 'linear-gradient(135deg, #22c55e, #16a34a)'
+                : 'linear-gradient(135deg, #ef4444, #dc2626)',
+            }}
+          >
+            {direction === 'up' ? '🟢 Almayı İncele' : '🔴 Satmayı İncele'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Card ─── */
 function CryptoCard({ coin, data, countdown, flash }) {
+  const [modal, setModal] = useState(null); // { direction: 'up'|'down' }
+
   if (!data?.currentPrice) {
     return (
       <div className="rounded-xl border border-slate-700/40 bg-slate-800/40 h-64 sm:h-72 animate-pulse" />
@@ -176,6 +293,7 @@ function CryptoCard({ coin, data, countdown, flash }) {
   const priceStr = price.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 
   return (
+    <>
     <div className="rounded-xl border border-slate-700/40 bg-[#0b0e11] overflow-hidden h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 bg-[#1e2329]">
@@ -206,19 +324,25 @@ function CryptoCard({ coin, data, countdown, flash }) {
 
       {/* Chart */}
       <div className="px-1 py-0.5 flex-1 min-h-0">
-        <MiniChart candles={data.candle1m?.slice(-10) || []} chartH={180} refPrice={refP} accent={coin.accent} />
+        <MiniChart candles={data.candle1m?.slice(-10) || []} chartH={180} refPrice={refP} accent={coin.accent} coinYRange={coin.yRange} />
       </div>
 
       {/* YUKARI / ASAGI */}
       <div className="grid grid-cols-2 gap-1 px-3 pb-2.5 pt-1">
-        <div className="rounded bg-green-600/90 py-1 px-1.5 text-center relative overflow-hidden">
+        <div
+          className="rounded bg-green-600/90 py-1 px-1.5 text-center relative overflow-hidden cursor-pointer hover:bg-green-500/90 transition-colors active:scale-95"
+          onClick={() => setModal({ direction: 'up' })}
+        >
           <div className="absolute inset-0 bg-green-400/10" style={{ width: `${yes}%` }} />
           <div className="relative z-10">
             <div className="text-[7px] text-green-200/80">YUKARI</div>
             <div className="text-xs font-bold text-white">{yes}%</div>
           </div>
         </div>
-        <div className="rounded bg-red-600/90 py-1 px-1.5 text-center relative overflow-hidden">
+        <div
+          className="rounded bg-red-600/90 py-1 px-1.5 text-center relative overflow-hidden cursor-pointer hover:bg-red-500/90 transition-colors active:scale-95"
+          onClick={() => setModal({ direction: 'down' })}
+        >
           <div className="absolute inset-0 bg-red-400/10" style={{ width: `${no}%` }} />
           <div className="relative z-10">
             <div className="text-[7px] text-red-200/80">ASAGI</div>
@@ -227,6 +351,16 @@ function CryptoCard({ coin, data, countdown, flash }) {
         </div>
       </div>
     </div>
+
+    {modal && (
+      <TradeModal
+        coin={coin}
+        direction={modal.direction}
+        price={price}
+        onClose={() => setModal(null)}
+      />
+    )}
+    </>
   );
 }
 
@@ -307,7 +441,7 @@ export default function CryptoGrid() {
       </div>
 
       <div className="mt-2 text-center text-[9px] text-slate-600">
-        Binance • 3 saniye güncelleme • Netlify Functions proxy
+        Gate.io • 3 saniye güncelleme • Netlify Functions proxy
       </div>
     </div>
   );
