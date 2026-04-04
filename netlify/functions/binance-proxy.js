@@ -1,7 +1,5 @@
-const fetch = require('node-fetch');
-
 exports.handler = async (event, context) => {
-  const { symbol, endpoint } = event.queryStringParameters || {};
+  const { symbol } = event.queryStringParameters || {};
 
   if (!symbol) {
     return { statusCode: 400, body: JSON.stringify({ error: 'symbol required' }) };

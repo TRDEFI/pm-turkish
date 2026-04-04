@@ -1,5 +1,3 @@
-const fetch = require('node-fetch');
-
 exports.handler = async (event, context) => {
   try {
     const res = await fetch('https://gamma-api.polymarket.com/markets?closed=false&_limit=30', {
