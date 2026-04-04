@@ -41,10 +41,14 @@ function MiniChart({ candles, chartH = 180, refPrice, accent }) {
     const lastClose = closes[closes.length - 1];
     const rawMin = Math.min(...closes);
     const rawMax = Math.max(...closes);
-    const halfRange = (rawMax - rawMin) / 2 || lastClose * 0.001;
-    const padPx = Math.max(halfRange * 0.5, 2);
-    const yMin = (rawMin + rawMax) / 2 - halfRange - padPx;
-    const yMax = (rawMin + rawMax) / 2 + halfRange + padPx;
+    const rawRange = rawMax - rawMin;
+    // Force minimum 2% Y-axis range (0.02) so XRP ($1.31) price movement is visible
+    const minRange = Math.max(rawRange, Math.abs(lastClose) * 0.02);
+    const halfRange = minRange / 2;
+    const pady = Math.max(halfRange * 0.4, Math.abs(lastClose) * 0.002);
+    const centerY = (rawMin + rawMax) / 2;
+    const yMin = centerY - halfRange - pady;
+    const yMax = centerY + halfRange + pady;
     const yRange = yMax - yMin;
 
     const ml = 8, mr = 64, mt = 10, mb = 24;

@@ -1,6 +1,7 @@
 'use client';
 
 import { t } from '../lib/translations';
+import { translateQuestion } from '../lib/autoTranslate';
 
 export default function BidCard({ market, priceChange }) {
   const {
@@ -14,7 +15,7 @@ export default function BidCard({ market, priceChange }) {
     _livePrices,
   } = market;
 
-  const questionTr = t(question);
+  const questionTr = translateQuestion(question);
   const isBtc5min = market.isBtc5min === true;
 
   // Parse outcomes
