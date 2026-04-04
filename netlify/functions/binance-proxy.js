@@ -5,7 +5,8 @@ exports.handler = async (event, context) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'symbol required' }) };
   }
 
-  const binanceBase = 'https://api.binance.com/api/v3';
+  // Use api1.binance.com — works from AWS Lambda / Netlify regions
+  const binanceBase = 'https://api1.binance.com/api/v3';
 
   try {
     const results = await Promise.all([
