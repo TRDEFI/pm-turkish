@@ -48,19 +48,23 @@ async function generateEventsFromNews(newsItems) {
 
   const newsSummary = newsItems.map((n, i) => `${i + 1}. ${n.title} (${n.url || 'URL Yok'})`).join('\n');
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://pm-turkish.netlify.app'
-    },
-    body: JSON.stringify({
-      model: 'nvidia/nemotron-3-super-120b-a12b:free',
-      messages: [
-        {
-          role: 'system',
-          content: `Sen bir Türk tahmin platformu için event (olay) üreticisisin.
+  // Retry logic for OpenRouter (free models sometimes return intermittent 401)
+  let response = null;
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://pm-turkish.netlify.app'
+      },
+      body: JSON.stringify({
+        model: 'qwen/qwen3.6-plus:free',
+        messages: [
+          {
+            role: 'system',
+            content: `Sen bir Türk tahmin platformu için event (olay) üreticisisin.
 Görevin: Güncel haberlerden ve trendlerden yola çıkarak EVET/HAYIR tahmin soruları oluşturmak.
 
 KURALLAR:
@@ -95,6 +99,18 @@ Format: Sadece JSON array olarak yanıt ver:
       max_tokens: 1500
     })
   });
+
+    // If successful, break the retry loop
+    if (response.ok) {
+      break;
+    }
+    
+    // Log the error and retry
+    console.warn(`OpenRouter attempt ${attempt} failed: ${response.status}`);
+    if (attempt < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+    }
+  }
 
   if (!response.ok) {
     throw new Error(`OpenRouter error: ${response.status} ${response.statusText}`);
