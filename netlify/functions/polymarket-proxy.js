@@ -1,8 +1,8 @@
 exports.handler = async (event, context) => {
   try {
-    // Fetch 100 markets from Gamma API (no filter, client-side categorizes)
+    // Fetch 300 markets to get enough diversity across categories
     const res = await fetch(
-      'https://gamma-api.polymarket.com/markets?closed=false&limit=100',
+      'https://gamma-api.polymarket.com/markets?closed=false&limit=300',
       { headers: { 'User-Agent': 'Mozilla/5.0' } }
     );
 
@@ -19,13 +19,21 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Sort by volume (order param is broken on API)
-    data.sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0));
+    // ── Categorize each market ──
+    function getCategory(eventTitle) {
+      if (!eventTitle) return 'other';
+      const t = eventTitle.toLowerCase();
+      if (t.includes('world cup') || (t.includes('fifa') && (t.includes('winner') || t.includes('champion')))) return 'fifa';
+      if (t.includes('nba') || t.includes('nhl') || t.includes('nfl') || t.includes('mlb') || t.includes('stanley') || t.includes('super bowl') || t.includes('finals') || (t.includes('champion') && !t.includes('president'))) return 'sports';
+      if (t.includes('trump') || t.includes('election') || t.includes('president') || t.includes('ceasefire') || t.includes('congress') || t.includes('senate') || t.includes('government') || t.includes('putin') || t.includes('xi ') || t.includes('democratic') || t.includes('tariff') || t.includes('sanction')) return 'politics';
+      if (t.includes('gta') || t.includes('rihanna') || t.includes('carti') || t.includes('album') || t.includes('movie') || t.includes('oscars') || t.includes('music')) return 'entertainment';
+      if (t.includes('megaeth') || t.includes('bitcoin') || t.includes('$btc') || t.includes('microstrategy') || t.includes('crypto') || t.includes('defi') || t.includes('solana')) return 'crypto';
+      if (t.includes('ai ') || t.includes(' space') || t.includes('nasa') || t.includes('climate') || t.includes('google') || t.includes('apple') || t.includes('tesla') || t.includes('quantum') || t.includes('science')) return 'science';
+      return 'other';
+    }
 
-    // ── Group markets by event ──
+    // ── Group by event ──
     const events = {};
-    const catMap = [];
-
     data.forEach(m => {
       const evt = m.events;
       let eventKey = 'genel';
@@ -42,113 +50,42 @@ exports.handler = async (event, context) => {
       }
 
       if (!events[eventKey]) {
-        events[eventKey] = { title: eventTitle, markets: [] };
+        events[eventKey] = { title: eventTitle, markets: [], category: getCategory(eventTitle) };
       }
       events[eventKey].markets.push(m);
-
-      // Categorize based on event title (client-side will use this)
-      const titleLower = eventTitle.toLowerCase();
-      let category = 'all';
-      if (
-        titleLower.includes('world cup') ||
-        titleLower.includes('fifa ') ||
-        titleLower.includes('fifa,') ||
-        titleLower.includes('football') ||
-        titleLower.includes('soccer')
-      ) {
-        category = 'fifa';
-      } else if (
-        titleLower.includes('nba') ||
-        titleLower.includes('nhl') ||
-        titleLower.includes('nfl') ||
-        titleLower.includes('mlb') ||
-        titleLower.includes('stanley') ||
-        titleLower.includes('super bowl') ||
-        titleLower.includes('finals') ||
-        titleLower.includes('champion')
-      ) {
-        category = 'sports';
-      } else if (
-        titleLower.includes('trump') ||
-        titleLower.includes('election') ||
-        titleLower.includes('president') ||
-        titleLower.includes('ceasefire') ||
-        titleLower.includes('congress') ||
-        titleLower.includes('senate') ||
-        titleLower.includes('government') ||
-        titleLower.includes('war') ||
-        titleLower.includes('israel') ||
-        titleLower.includes('ukraine') ||
-        titleLower.includes('russia') ||
-        titleLower.includes('china') ||
-        titleLower.includes('tariffs')
-      ) {
-        category = 'politics';
-      } else if (
-        titleLower.includes('gta') ||
-        titleLower.includes('rihanna') ||
-        titleLower.includes('album') ||
-        titleLower.includes('movie') ||
-        titleLower.includes('movie') ||
-        titleLower.includes('oscars') ||
-        titleLower.includes('carti') ||
-        titleLower.includes('music')
-      ) {
-        category = 'entertainment';
-      } else if (
-        titleLower.includes('megaeth') ||
-        titleLower.includes('bitcoin') ||
-        titleLower.includes('$btc') ||
-        titleLower.includes('microstrategy') ||
-        titleLower.includes('crypto') ||
-        titleLower.includes('eth') ||
-        titleLower.includes('ethereum') ||
-        titleLower.includes('token') ||
-        titleLower.includes('defi')
-      ) {
-        category = 'crypto';
-      } else if (
-        titleLower.includes('ai') ||
-        titleLower.includes('science') ||
-        titleLower.includes('space') ||
-        titleLower.includes('nasa') ||
-        titleLower.includes('covid') ||
-        titleLower.includes('health') ||
-        titleLower.includes('tech') ||
-        titleLower.includes('apple')
-      ) {
-        category = 'science';
-      }
-
-      catMap.push({ eventKey, category, eventTitle });
     });
 
-    // Tag each market with its category
-    const categorized = data.map((m, i) => {
-      const cm = catMap[i];
-      return { ...m, _category: cm ? cm.category : 'all' };
+    // Sort each event's markets by volume
+    Object.values(events).forEach(group => {
+      group.markets.sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0));
     });
 
-    // Pick 2-3 from each event group, preserving order
+    // ── Pick diverse selection: 2-3 from each event ──
     const diverse = [];
-    const eventEntries = Object.entries(events);
-    
-    // Sort events by total volume
-    eventEntries.sort((a, b) => {
-      const volA = a[1].markets.reduce((s, m) => s + (m.volumeNum || 0), 0);
-      const volB = b[1].markets.reduce((s, m) => s + (m.volumeNum || 0), 0);
-      return volB - volA;
-    });
 
-    for (const [key, group] of eventEntries) {
-      const pickCount = Math.min(3, Math.max(2, group.markets.length));
-      for (let i = 0; i < pickCount && i < group.markets.length; i++) {
-        const market = { ...group.markets[i] };
-        const cm = catMap.find(c => c.eventKey === key);
-        market._eventTitle = group.title;
-        market._eventKey = key;
-        market._category = cm ? cm.category : 'all';
-        diverse.push(market);
+    // Strategy: ensure each category gets representation
+    // Priority order: politics, sports, entertainment, fifa, crypto, science, other
+    const priorityCategories = ['politics', 'sports', 'entertainment', 'fifa', 'crypto', 'science', 'other'];
+
+    for (const cat of priorityCategories) {
+      const catEvents = Object.entries(events)
+        .filter(([_, g]) => g.category === cat)
+        .sort((a, b) => {
+          const volA = a[1].markets.reduce((s, m) => s + (m.volumeNum || 0), 0);
+          const volB = b[1].markets.reduce((s, m) => s + (m.volumeNum || 0), 0);
+          return volB - volA;
+        });
+
+      for (const [key, group] of catEvents) {
+        // Pick 2-3 from each event
+        const pickCount = Math.min(3, Math.max(2, group.markets.length));
+        for (let i = 0; i < pickCount && i < group.markets.length; i++) {
+          const market = { ...group.markets[i] };
+          market._eventTitle = group.title;
+          market._eventKey = key;
+          market._category = group.category;
+          diverse.push(market);
+        }
       }
     }
 
