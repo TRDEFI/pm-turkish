@@ -1,6 +1,6 @@
 exports.handler = async (event, context) => {
   try {
-    // Fetch 100 markets from Gamma API (no order param - it's broken)
+    // Fetch 100 markets from Gamma API (no filter, client-side categorizes)
     const res = await fetch(
       'https://gamma-api.polymarket.com/markets?closed=false&limit=100',
       { headers: { 'User-Agent': 'Mozilla/5.0' } }
@@ -19,16 +19,14 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Filter out US-restricted markets for cleaner display
-    data = data.filter(m => m.restricted !== true || m.active);
-
-    // Sort by volume (client-side since order param is broken)
+    // Sort by volume (order param is broken on API)
     data.sort((a, b) => (b.volumeNum || 0) - (a.volumeNum || 0));
 
-    // ── Diversify: pick top 2-3 from each event ──
+    // ── Group markets by event ──
     const events = {};
+    const catMap = [];
+
     data.forEach(m => {
-      // Use event slug as group key; fallback to 'genel' if missing
       const evt = m.events;
       let eventKey = 'genel';
       let eventTitle = 'Genel';
@@ -47,13 +45,95 @@ exports.handler = async (event, context) => {
         events[eventKey] = { title: eventTitle, markets: [] };
       }
       events[eventKey].markets.push(m);
+
+      // Categorize based on event title (client-side will use this)
+      const titleLower = eventTitle.toLowerCase();
+      let category = 'all';
+      if (
+        titleLower.includes('world cup') ||
+        titleLower.includes('fifa ') ||
+        titleLower.includes('fifa,') ||
+        titleLower.includes('football') ||
+        titleLower.includes('soccer')
+      ) {
+        category = 'fifa';
+      } else if (
+        titleLower.includes('nba') ||
+        titleLower.includes('nhl') ||
+        titleLower.includes('nfl') ||
+        titleLower.includes('mlb') ||
+        titleLower.includes('stanley') ||
+        titleLower.includes('super bowl') ||
+        titleLower.includes('finals') ||
+        titleLower.includes('champion')
+      ) {
+        category = 'sports';
+      } else if (
+        titleLower.includes('trump') ||
+        titleLower.includes('election') ||
+        titleLower.includes('president') ||
+        titleLower.includes('ceasefire') ||
+        titleLower.includes('congress') ||
+        titleLower.includes('senate') ||
+        titleLower.includes('government') ||
+        titleLower.includes('war') ||
+        titleLower.includes('israel') ||
+        titleLower.includes('ukraine') ||
+        titleLower.includes('russia') ||
+        titleLower.includes('china') ||
+        titleLower.includes('tariffs')
+      ) {
+        category = 'politics';
+      } else if (
+        titleLower.includes('gta') ||
+        titleLower.includes('rihanna') ||
+        titleLower.includes('album') ||
+        titleLower.includes('movie') ||
+        titleLower.includes('movie') ||
+        titleLower.includes('oscars') ||
+        titleLower.includes('carti') ||
+        titleLower.includes('music')
+      ) {
+        category = 'entertainment';
+      } else if (
+        titleLower.includes('megaeth') ||
+        titleLower.includes('bitcoin') ||
+        titleLower.includes('$btc') ||
+        titleLower.includes('microstrategy') ||
+        titleLower.includes('crypto') ||
+        titleLower.includes('eth') ||
+        titleLower.includes('ethereum') ||
+        titleLower.includes('token') ||
+        titleLower.includes('defi')
+      ) {
+        category = 'crypto';
+      } else if (
+        titleLower.includes('ai') ||
+        titleLower.includes('science') ||
+        titleLower.includes('space') ||
+        titleLower.includes('nasa') ||
+        titleLower.includes('covid') ||
+        titleLower.includes('health') ||
+        titleLower.includes('tech') ||
+        titleLower.includes('apple')
+      ) {
+        category = 'science';
+      }
+
+      catMap.push({ eventKey, category, eventTitle });
     });
 
-    // Pick 2-3 from each event group
+    // Tag each market with its category
+    const categorized = data.map((m, i) => {
+      const cm = catMap[i];
+      return { ...m, _category: cm ? cm.category : 'all' };
+    });
+
+    // Pick 2-3 from each event group, preserving order
     const diverse = [];
     const eventEntries = Object.entries(events);
-
-    // Sort events by total volume (most interesting first)
+    
+    // Sort events by total volume
     eventEntries.sort((a, b) => {
       const volA = a[1].markets.reduce((s, m) => s + (m.volumeNum || 0), 0);
       const volB = b[1].markets.reduce((s, m) => s + (m.volumeNum || 0), 0);
@@ -64,19 +144,18 @@ exports.handler = async (event, context) => {
       const pickCount = Math.min(3, Math.max(2, group.markets.length));
       for (let i = 0; i < pickCount && i < group.markets.length; i++) {
         const market = { ...group.markets[i] };
+        const cm = catMap.find(c => c.eventKey === key);
         market._eventTitle = group.title;
         market._eventKey = key;
+        market._category = cm ? cm.category : 'all';
         diverse.push(market);
       }
     }
 
-    // Cap at 24 total (6 categories x 4 = nice grid)
-    const result = diverse.slice(0, 24);
-
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify(result),
+      body: JSON.stringify(diverse),
     };
   } catch (err) {
     return {

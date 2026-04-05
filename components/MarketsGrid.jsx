@@ -5,10 +5,22 @@ import BidCard from './BidCard';
 
 const REFRESH_INTERVAL = 8000;
 
+// Category definitions matching Polymarket
+const CATEGORIES = [
+  { key: 'all', label: 'Tümü', emoji: '⭐' },
+  { key: 'fifa', label: 'FIFA', emoji: '⚽' },
+  { key: 'sports', label: 'Sports', emoji: '🏀' },
+  { key: 'politics', label: 'Politics', emoji: '🏛️' },
+  { key: 'entertainment', label: 'Entertainment', emoji: '🎬' },
+  { key: 'crypto', label: 'Crypto', emoji: '₿' },
+  { key: 'science', label: 'Science & Tech', emoji: '🔬' },
+];
+
 export default function MarketsGrid() {
   const [markets, setMarkets] = useState([]);
   const [prevMarkets, setPrevMarkets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
   const [fetching, setFetching] = useState(false);
@@ -45,14 +57,19 @@ export default function MarketsGrid() {
     return () => clearInterval(timer);
   }, [loadMarkets]);
 
-  // Group markets by event title
+  // Filter markets by selected category
+  const filteredMarkets = filter === 'all'
+    ? markets
+    : markets.filter(m => (m._category === filter));
+
+  // Group filtered markets by event title
   const groups = [];
   const seen = new Set();
-  markets.forEach(m => {
+  filteredMarkets.forEach(m => {
     const title = m._eventTitle || 'Diğer';
     if (title && !seen.has(title)) {
       seen.add(title);
-      const groupMarkets = markets.filter(x => (x._eventTitle || 'Diğer') === title);
+      const groupMarkets = filteredMarkets.filter(x => (x._eventTitle || 'Diğer') === title);
       groups.push({ title, markets: groupMarkets });
     }
   });
@@ -86,26 +103,56 @@ export default function MarketsGrid() {
 
   return (
     <div>
-      {/* Status bar */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2.5 w-2.5">
-            {fetching ? (
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-            ) : (
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            )}
-          </span>
-          <span className="text-xs text-slate-500">
-            {fetching ? 'Güncelleniyor...' : `${timeAgoStr()}`}
-          </span>
-          <span className="text-xs text-slate-600">·</span>
-          <span className="text-xs text-slate-600">{groups.length} konu · {markets.length} pazar</span>
+      {/* Status bar + Category Row */}
+      <div className="mb-6">
+        {/* Status + Refresh */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              {fetching ? (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              ) : (
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              )}
+            </span>
+            <span className="text-xs text-slate-500">
+              {fetching ? 'Güncelleniyor...' : `${timeAgoStr()}`}
+            </span>
+            <span className="text-xs text-slate-600">·</span>
+            <span className="text-xs text-slate-600">{groups.length} konu · {filteredMarkets.length} pazar</span>
+          </div>
+          <button onClick={() => loadMarkets(false)} disabled={fetching}
+            className={`text-xs px-2.5 py-1 rounded-md transition-all ${fetching ? 'text-slate-600 text-slate-800/50' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+            ↻ Yenile
+          </button>
         </div>
-        <button onClick={() => loadMarkets(false)} disabled={fetching}
-          className={`text-xs px-2.5 py-1 rounded-md transition-all ${fetching ? 'text-slate-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-          ↻ Yenile
-        </button>
+
+        {/* Category Row — Polymarket Style */}
+        <div className="flex flex-wrap gap-2">
+          {CATEGORIES.map(cat => {
+            // Count how many markets in this category
+            const count = cat.key === 'all'
+              ? markets.length
+              : markets.filter(m => m._category === cat.key).length;
+
+            return (
+              <button
+                key={cat.key}
+                onClick={() => setFilter(cat.key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  filter === cat.key
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                    : 'bg-slate-800/80 text-slate-400 border border-slate-700/50 hover:border-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {cat.emoji} {cat.label}
+                <span className={`ml-1 ${filter === cat.key ? 'text-blue-200' : 'text-slate-600'}`}>
+                  ({count})
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {error && (
@@ -140,7 +187,14 @@ export default function MarketsGrid() {
         </div>
       )}
 
-      {!error && markets.length === 0 && (
+      {!error && filteredMarkets.length === 0 && markets.length > 0 && (
+        <div className="text-center py-16">
+          <p className="text-slate-500 mb-2">Bu kategoride pazar bulunamadı</p>
+          <button onClick={() => setFilter('all')} className="text-xs text-blue-400 hover:text-blue-300">Tümünü Göster</button>
+        </div>
+      )}
+
+      {!error && groups.length === 0 && markets.length === 0 && (
         <div className="text-center py-16"><p className="text-slate-500">Pazar bulunamadı</p></div>
       )}
     </div>
