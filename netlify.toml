@@ -5,3 +5,7 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+
+# Scheduled function - LLM event generator (every 15 minutes)
+[functions.generate-events]
+  schedule = "*/15 * * * *"

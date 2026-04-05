@@ -1,9 +1,11 @@
 import MarketsGrid from '../components/MarketsGrid';
 import CryptoGrid from '../components/CryptoGrid';
+import EventsSection from '../components/EventsSection';
 
 /**
  * Main landing page for Polymarket Turkish Investor Dashboard
  * Displays BTC live market + grid of active markets with Turkish translations
+ * + AI-generated prediction events (LLM powered, TR-focused)
  */
 export default function Home() {
   return (
@@ -39,7 +41,11 @@ export default function Home() {
         {/* Crypto 5-Dakika Grid */}
         <CryptoGrid />
 
+        {/* Polymarket Markets */}
         <MarketsGrid />
+
+        {/* AI Generated Events */}
+        <EventsSection />
       </main>
 
       {/* Footer */}
