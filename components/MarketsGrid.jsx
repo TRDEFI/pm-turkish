@@ -10,7 +10,6 @@ export default function MarketsGrid() {
   const [markets, setMarkets] = useState([]);
   const [prevMarkets, setPrevMarkets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
   const [fetching, setFetching] = useState(false);
@@ -21,7 +20,6 @@ export default function MarketsGrid() {
     if (!silent) setFetching(true);
     setError(null);
     try {
-      // ✅ Use Netlify Functions proxy (no CORS issues)
       const res = await fetch('/.netlify/functions/polymarket-proxy');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -49,22 +47,16 @@ export default function MarketsGrid() {
     return () => clearInterval(timer);
   }, [loadMarkets]);
 
-  const categories = ['all', ...new Set(
-    markets.map(m => (m.category || '').toLowerCase()).filter(Boolean)
-  )];
-
-  const getCatName = (cat) => {
-    const names = {
-      all: 'Tümü', politics: 'Politika', sports: 'Spor',
-      economics: 'Ekonomi', entertainment: 'Eğlence', news: 'Haberler',
-      science: 'Bilim', technology: 'Teknoloji', crypto: 'Kripto'
-    };
-    return names[cat] || t(cat, cat);
-  };
-
-  const filteredMarkets = filter === 'all'
-    ? markets
-    : markets.filter(m => (m.category || '').toLowerCase() === filter);
+  // Extract unique event titles for display as pills
+  const eventTitles = [];
+  const seenEvents = new Set();
+  markets.forEach(m => {
+    const title = m._eventTitle || m._eventKey || 'Genel';
+    if (title && !seenEvents.has(title)) {
+      seenEvents.add(title);
+      eventTitles.push(title);
+    }
+  });
 
   const timeAgoStr = () => {
     const s = Math.floor((Date.now() - lastUpdate) / 1000);
@@ -88,7 +80,7 @@ export default function MarketsGrid() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <div className="w-10 h-10 border-[3px] border-slate-700 border-t-blue-500 rounded-full animate-spin" />
-        <p className="text-slate-400 text-sm">Piyasa verileri yükleniyor...</p>
+        <p className="text-slate-400 text-sm">Piyasa verileri yüzkleniyor...</p>
       </div>
     );
   }
@@ -114,14 +106,19 @@ export default function MarketsGrid() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {categories.slice(0, 8).map(cat => (
-          <button key={cat} onClick={() => setFilter(cat)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filter === cat ? 'bg-blue-600 text-white' : 'bg-slate-800/80 text-slate-400 border border-slate-700/50 hover:border-slate-500'}`}>
-            {getCatName(cat)}
-          </button>
-        ))}
-      </div>
+      {/* Event topic pills showing diversity */}
+      {eventTitles.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-5">
+          {eventTitles.slice(0, 8).map(title => (
+            <span key={title} className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800/60 text-slate-400 border border-slate-700/30">
+              {title}
+            </span>
+          ))}
+          {eventTitles.length > 8 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] text-slate-500">+{eventTitles.length - 8}</span>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="bg-rose-950/30 border border-rose-800/30 rounded-xl p-6 text-center mb-6">
@@ -130,22 +127,16 @@ export default function MarketsGrid() {
         </div>
       )}
 
-      {!error && filteredMarkets.length > 0 && (
+      {!error && markets.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredMarkets.map(market => (
+          {markets.map(market => (
             <BidCard key={market.id} market={market} priceChange={getPriceChange(market)} />
           ))}
         </div>
       )}
 
-      {!error && filteredMarkets.length === 0 && (
-        <div className="text-center py-16"><p className="text-slate-500">Bu kategoride pazar bulunamadı</p></div>
-      )}
-
-      {!error && filteredMarkets.length > 0 && (
-        <p className="text-center text-xs text-slate-600 mt-6">
-          {filteredMarkets.length} pazar gösteriliyor
-        </p>
+      {!error && markets.length === 0 && (
+        <div className="text-center py-16"><p className="text-slate-500">Pazar bulunamadı</p></div>
       )}
     </div>
   );

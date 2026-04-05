@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 const COINS = [
   { symbol: 'BTCUSDT', short: 'BTC', name: 'Bitcoin', decimals: 2, accent: '#f7931a', symbolChar: '₿', yRange: 100 },
-  { symbol: 'ETHUSDT', short: 'ETH', name: 'Ethereum', decimals: 2, accent: '#627eea', symbolChar: 'Ξ', yRange: 50 },
+  { symbol: 'ETHUSDT', short: 'ETH', name: 'Ethereum', decimals: 2, accent: '#627eea', symbolChar: 'Ξ', yRange: 5 },
   { symbol: 'XRPUSDT', short: 'XRP', name: 'Ripple', decimals: 4, accent: '#00aae4', symbolChar: '✕', yRange: 0.005 },
 ];
 
