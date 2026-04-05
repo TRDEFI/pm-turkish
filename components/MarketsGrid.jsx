@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import BidCard from './BidCard';
+import { translateEventTitle } from '../lib/autoTranslate';
 
 const REFRESH_INTERVAL = 8000;
 
@@ -169,7 +170,7 @@ export default function MarketsGrid() {
               {/* Event Section Header */}
               <div className="flex items-center gap-3 mb-3">
                 <h2 className="text-sm sm:text-base font-bold text-slate-100">
-                  {group.title}
+                  {translateEventTitle(group.title)}
                 </h2>
                 <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">
                   {group.markets.length} pazar
