@@ -56,7 +56,7 @@ async function generateEventsFromNews(newsItems) {
       'HTTP-Referer': 'https://pm-turkish.netlify.app'
     },
     body: JSON.stringify({
-      model: 'nvidia/nemotron-3-super-121b-a8b:free',
+      model: 'openrouter/free',
       messages: [
         {
           role: 'system',
