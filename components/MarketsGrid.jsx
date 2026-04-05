@@ -10,11 +10,11 @@ const REFRESH_INTERVAL = 8000;
 const CATEGORIES = [
   { key: 'all', label: 'Tümü', emoji: '⭐' },
   { key: 'fifa', label: 'FIFA', emoji: '⚽' },
-  { key: 'sports', label: 'Sports', emoji: '🏀' },
-  { key: 'politics', label: 'Politics', emoji: '🏛️' },
-  { key: 'entertainment', label: 'Entertainment', emoji: '🎬' },
-  { key: 'crypto', label: 'Crypto', emoji: '₿' },
-  { key: 'science', label: 'Science & Tech', emoji: '🔬' },
+  { key: 'sports', label: 'Spor', emoji: '🏀' },
+  { key: 'politics', label: 'Politika', emoji: '🏛️' },
+  { key: 'entertainment', label: 'Eğlence', emoji: '🎬' },
+  { key: 'crypto', label: 'Kripto', emoji: '₿' },
+  { key: 'science', label: 'Bilim & Teknoloji', emoji: '🔬' },
 ];
 
 export default function MarketsGrid() {
