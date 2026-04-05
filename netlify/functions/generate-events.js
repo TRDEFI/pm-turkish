@@ -60,7 +60,7 @@ async function generateEventsFromNews(newsItems) {
         'HTTP-Referer': 'https://pm-turkish.netlify.app'
       },
       body: JSON.stringify({
-        model: 'qwen/qwen3.6-plus:free',
+        model: 'openrouter/free',
         messages: [
           {
             role: 'system',
