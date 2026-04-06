@@ -1,21 +1,20 @@
 // Netlify Function - Fetch events from Supabase
-// If ?past=true → returns resolved events (past log)
+// If ?past=true → returns all events (past log, including active)
 // If ?past=false/absent → returns active events (homepage)
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://aytotwrddgjbstcprbev.supabase.co';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://aeykrdfsghbmrnjcxqyu.supabase.co';
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 function getApiKey() {
-  // Use service_role if available; fallback to anon
   return SERVICE_ROLE || ANON_KEY;
 }
 
 function buildQuery(past) {
   if (past) {
-    // Past log: all events that have a result (resolved)
-    return '?result=not.is.null&order=created_at.desc&select=*';
+    // Past log: all events, newest first
+    return '?order=created_at.desc&select=*';
   }
-  // Default: active upcoming events
+  // Homepage: only active events
   return '?status=eq.active&order=created_at.desc&select=*';
 }
 
