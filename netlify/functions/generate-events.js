@@ -1,8 +1,10 @@
 // Netlify Scheduled Function - Generates prediction events every 15 minutes
 // Trigger: scheduled every 15 min via netlify.toml
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://aytotwrddgjbstcprbev.supabase.co';
-const SERVICE_ROLE_KEY = process.env.SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5dG90d3JkZGdqYnN0Y3ByYmV2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTQxMzMwMCwiZXhwIjoyMDkwOTg5MzAwfQ.byZ7ht0VJrcY_nUMakbBaq_IY-6OaKhcqjZvf4b9oI8';
-const OPENROUTER_API_KEY = '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';
+// All secrets must be set as Netlify Environment Variables:
+// SUPABASE_URL, SERVICE_ROLE_KEY, OPENROUTER_API_KEY
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SERVICE_ROLE_KEY;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 const CATEGORIES = ['hava-durumu', 'ekonomi', 'spor', 'gundem', 'teknoloji', 'kultur-sanat'];
 

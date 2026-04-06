@@ -1,6 +1,6 @@
 // Netlify Function - Fetch active events from Supabase for frontend
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://aytotwrddgjbstcprbev.supabase.co';
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5dG90d3JkZGdqYnN0Y3ByYmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTMzMDAsImV4cCI6MjA5MDk4OTMwMH0.FgCB3RqtEQVmBypndva4RZQHPW_uref_Vt-OqTigZW8';
+const ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 exports.handler = async (event, context) => {
   try {
