@@ -10,14 +10,6 @@ import GeneratedEventsSection from '../components/GeneratedEventsSection';
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Bounce keyframe for weather icon */}
-      <style>{`
-        @keyframes soft-bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
-        }
-      `}</style>
-
       {/* Header */}
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-slate-900/80 border-b border-slate-700/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">

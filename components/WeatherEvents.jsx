@@ -123,13 +123,14 @@ function VoteModal({ city, question, choice, threshold, onClose }) {
 
 /* ─── WeatherCard ─── */
 function WeatherCard({ event }) {
-  const { city, currentTemp, threshold, diff, weatherIcon, dateDisplay, timeRange, hasData } = event;
+  const { city, currentTemp, threshold, diff, weatherIcon, dateDisplay, startTime, endTime, timeRange, hasData } = event;
   const [modal, setModal] = useState(null);
 
   const diffSign = diff !== null ? (diff > 0 ? '+' : '') : '';
   const diffColor = diff !== null ? (diff >= 0 ? 'text-orange-400' : 'text-blue-400') : 'text-slate-600';
 
-  const questionShort = `${city} — ${dateDisplay} ${startTime}-${endTime} en yüksek {threshold}°C'yi geçer mi?`;
+  // timeRange is "07:00-19:00" for display
+  const timeDisplay = timeRange || `${startTime}–${endTime}`;
 
   return (
     <>
@@ -142,7 +143,7 @@ function WeatherCard({ event }) {
           </span>
           <div className="flex-1 min-w-0">
             <h3 className="text-[11.5px] font-semibold text-slate-100 leading-[1.35] line-clamp-2">
-              {city} — {dateDisplay} {startTime}–{endTime} arası en yüksek {threshold}°C'yi geçer mi?
+              {city} — {dateDisplay} {timeDisplay} arası en yüksek {threshold}°C'yi geçer mi?
             </h3>
           </div>
         </div>
@@ -224,6 +225,16 @@ function WeatherCard({ event }) {
 /* ─── Main ─── */
 export default function WeatherEvents() {
   const [events, setEvents] = useState([]);
+
+  // Inline CSS for weather icon bounce
+  const bounceStyle = (
+    <style>{`
+      @keyframes soft-bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-4px); }
+      }
+    `}</style>
+  );
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
   const [fetching, setFetching] = useState(false);
@@ -278,6 +289,7 @@ export default function WeatherEvents() {
 
   return (
     <div>
+      {bounceStyle}
       {/* Status bar */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
