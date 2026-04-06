@@ -4,12 +4,20 @@ import GeneratedEventsSection from '../components/GeneratedEventsSection';
 
 /**
  * Main landing page — 50/50 layout
- * LEFT: LLM-generated events (weather, crypto, fx)
+ * LEFT: LLM-generated events (Hava/Kripto/Döviz tabs)
  * RIGHT: Polymarket markets
  */
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Bounce keyframe for weather icon */}
+      <style>{`
+        @keyframes soft-bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+      `}</style>
+
       {/* Header */}
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-slate-900/80 border-b border-slate-700/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -17,12 +25,8 @@ export default function Home() {
             <div className="flex items-center space-x-3">
               <img src="/logo.jpg" alt="TRDEFI" className="w-12 h-12 rounded-xl object-cover shadow-lg" />
               <div>
-                <h1 className="text-xl md:text-2xl font-bold gradient-text">
-                  Polymarket Yatırımcı Panosu
-                </h1>
-                <p className="text-slate-400 text-xs md:text-sm">
-                  Gerçek zamanlı veriler
-                </p>
+                <h1 className="text-xl md:text-2xl font-bold gradient-text">Polymarket Yatırımcı Panosu</h1>
+                <p className="text-slate-400 text-xs md:text-sm">Gerçek zamanlı veriler</p>
               </div>
             </div>
             <div className="mt-3 md:mt-0">
@@ -43,7 +47,7 @@ export default function Home() {
         {/* 50/50 Two Columns */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
           {/* LEFT: Generated Events */}
-          <div>
+          <div className="min-w-0">
             <h2 className="text-base font-bold text-slate-100 mb-4 flex items-center gap-2">
               🔮 Oluşturulan Olaylar
             </h2>
@@ -51,7 +55,10 @@ export default function Home() {
           </div>
 
           {/* RIGHT: Polymarket Markets */}
-          <div>
+          <div className="min-w-0">
+            <h2 className="text-base font-bold text-slate-100 mb-4 flex items-center gap-2">
+              🌐 Polymarket Piyasaları
+            </h2>
             <MarketsGrid />
           </div>
         </div>
