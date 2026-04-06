@@ -5,19 +5,20 @@ import { useState, useEffect, useCallback } from 'react';
 const REFRESH_INTERVAL = 15 * 60 * 1000;
 
 const RATES = [
-  { symbol: 'USD', currency: 'USD/TRY', pair: 'USD_TRY', decimals: 4, threshold: 40.0000, icon: '💵' },
-  { symbol: 'EUR', currency: 'EUR/TRY', pair: 'EUR_TRY', decimals: 4, threshold: 43.5000, icon: '💶' },
-  { symbol: 'GBP', currency: 'GBP/TRY', pair: 'GBP_TRY', decimals: 4, threshold: 51.0000, icon: '💷' },
+  { symbol: 'USD', currency: 'USD/TRY', base: 'USD', target: 'TRY', decimals: 4, threshold: 40.0000, icon: '💵' },
+  { symbol: 'EUR', currency: 'EUR/TRY', base: 'EUR', target: 'TRY', decimals: 4, threshold: 43.5000, icon: '💶' },
+  { symbol: 'GBP', currency: 'GBP/TRY', base: 'GBP', target: 'TRY', decimals: 4, threshold: 51.0000, icon: '💷' },
 ];
 
 const DEADLINE_TIME = '16:45 GMT+3';
 
-async function fetchRate(symbol) {
+async function fetchRate(base, target) {
   try {
-    const res = await fetch(`https://open.er-api.com/v6/latest/${symbol}`);
+    const res = await fetch(`https://open.er-api.com/v6/latest/${base}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    if (data.rates?.[symbol]) return parseFloat(data.rates[symbol]);
+    // API returns base=1, so USD base → rates.TRY = ~40
+    if (data.rates?.[target]) return parseFloat(data.rates[target]);
   } catch { /* fallback */ }
   return null;
 }
@@ -33,7 +34,7 @@ export default function ForexEvents() {
     try {
       const results = await Promise.all(
         RATES.map(async (r) => {
-          const price = await fetchRate(r.symbol);
+          const price = await fetchRate(r.base, r.target);
           const diff = price !== null ? +(price - r.threshold).toFixed(r.decimals) : null;
           const status = diff !== null ? (price >= r.threshold ? 'above' : 'below') : 'waiting';
           return { ...r, price, diff, status, hasData: price !== null };

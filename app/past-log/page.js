@@ -6,7 +6,7 @@ import Link from 'next/link';
 const SUPABASE_URL = 'https://aytotwrddgjbstcprbev.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5dG90d3JkZGdjYnN0Y3ByYmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTMzMDAsImV4cCI6MjA5MDk4OTMwMH0.FgCB3RqtEQVmBypndva4RZQHPW_uref_Vt-OqTigZW8';
 
-async function supabaseQuery(endpoint, params = {}) {
+async function supabaseQuery(endpoint, params = { select: '*', order: 'created_at.desc', limit: 50 }) {
   const qs = new URLSearchParams(params).toString();
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}${qs ? '?' + qs : ''}`, {
@@ -41,18 +41,19 @@ export default function PastLogPage() {
 
   async function loadForex() {
     const rates = [
-      { currency: 'USD', symbol: 'USD/TRY', threshold: 40.0000, icon: '💵' },
-      { currency: 'EUR', symbol: 'EUR/TRY', threshold: 43.5000, icon: '💶' },
-      { currency: 'GBP', symbol: 'GBP/TRY', threshold: 51.0000, icon: '💷' },
+      { currency: 'USD/TRY', threshold: 40.0000, icon: '💵' },
+      { currency: 'EUR/TRY', threshold: 43.5000, icon: '💶' },
+      { currency: 'GBP/TRY', threshold: 51.0000, icon: '💷' },
     ];
     const results = await Promise.all(
       rates.map(async (r) => {
         try {
-          const res = await fetch(`https://open.er-api.com/v6/latest/${r.currency}`);
+          const base = r.currency.split('/')[0];
+          const res = await fetch(`https://open.er-api.com/v6/latest/${base}`);
           if (!res.ok) return { ...r, rate: null, correct: null, hasData: false };
           const data = await res.json();
-          if (data?.rates?.[r.currency]) {
-            const rate = parseFloat(data.rates[r.currency]);
+          if (data?.rates?.TRY) {
+            const rate = parseFloat(data.rates.TRY);
             return { ...r, rate, correct: rate >= r.threshold, hasData: true };
           }
         } catch { /* */ }
@@ -85,20 +86,17 @@ export default function PastLogPage() {
 
   async function loadLlmEvents() {
     setSupabaseStatus('querying');
-    const data = await supabaseQuery('events', {
-      select: '*',
-      order: 'created_at.desc',
-      limit: 50,
-    });
+    const rows = await supabaseQuery('events');
+    const sorted = rows ? rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 50) : [];
 
-    if (data === null) {
+    if (rows === null) {
       setSupabaseStatus('error');
-    } else if (data.length === 0) {
+    } else if (sorted.length === 0) {
       setSupabaseStatus('empty');
     } else {
       setSupabaseStatus('ok');
     }
-    setLlmEvents(data || []);
+    setLlmEvents(sorted);
   }
 
   const fCorrect = forexData.filter(e => e.correct).length;
