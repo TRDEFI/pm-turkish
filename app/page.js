@@ -3,30 +3,37 @@ import CryptoGrid from '../components/CryptoGrid';
 import GeneratedEventsSection from '../components/GeneratedEventsSection';
 
 /**
- * Main landing page — 50/50 layout
- * LEFT: LLM-generated events (Hava/Kripto/Döviz tabs)
- * RIGHT: Polymarket markets
+ * Landing Page — VoltAgent dark + Stripe typography + Vercel elevation
  */
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-xl bg-slate-900/80 border-b border-slate-700/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center space-x-3">
-              <img src="/logo.jpg" alt="TRDEFI" className="w-12 h-12 rounded-xl object-cover shadow-lg" />
+    <div className="min-h-screen bg-[#0a0c10] text-[#e4e4e7]">
+      {/* ── Top Glow ── */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[320px] pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.06) 0%, transparent 70%)',
+        }} />
+
+      {/* ── Header ── */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#0a0c10]/80 border-b border-white/[0.06]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-sky-400 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-blue-500/20">
+                T
+              </div>
               <div>
-                <h1 className="text-xl md:text-2xl font-bold gradient-text">Polymarket Yatırımcı Panosu</h1>
-                <p className="text-slate-400 text-xs md:text-sm">Gerçek zamanlı veriler</p>
+                <h1 className="text-base font-semibold tracking-tight text-white">TRDEFI · Tahmin Panosu</h1>
+                <p className="text-[11px] text-zinc-500">Canlı hava, kripto & piyasa tahminleri</p>
               </div>
             </div>
-            <div className="mt-3 md:mt-0 flex items-center gap-3">
-              <a href="/past-log" className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-600 hover:bg-violet-500 text-white transition-all border border-violet-400/30">
+            <div className="flex items-center gap-2.5">
+              <a href="/past-log"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 transition-all">
                 📋 Geçmiş Tahminler
               </a>
-              <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 pulse-glow">
-                <span className="w-2 h-2 mr-2 bg-emerald-400 rounded-full animate-pulse"></span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[10px] font-medium bg-emerald-500/8 text-emerald-400 border border-emerald-500/15">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Canlı
               </span>
             </div>
@@ -34,46 +41,51 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Crypto 5-Dakika Grid */}
+      {/* ── Main ── */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6 relative z-10">
+        {/* Crypto 5-Dakika */}
         <CryptoGrid />
 
-        {/* 50/50 Two Columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-          {/* LEFT: Generated Events */}
+        {/* 50/50 Columns */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* LEFT: Generated */}
           <div className="min-w-0">
-            <h2 className="text-base font-bold text-slate-100 mb-4 flex items-center gap-2">
-              🔮 Oluşturulan Olaylar
-            </h2>
-            <GeneratedEventsSection />
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-1 h-5 rounded-full bg-sky-500" />
+              <h2 className="text-sm font-semibold text-zinc-200 tracking-tight">Oluşturulan Olaylar</h2>
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/15 font-medium">
+                LLM
+              </span>
+            </div>
+            <div className="bg-[#111318] rounded-xl border border-white/[0.06] p-4 shadow-[0px_0px_0px_1px_rgba(255,255,255,0.03),0px_4px_16px_rgba(0,0,0,0.3)]">
+              <GeneratedEventsSection />
+            </div>
           </div>
 
-          {/* RIGHT: Polymarket Markets */}
+          {/* RIGHT: Polymarket */}
           <div className="min-w-0">
-            <h2 className="text-base font-bold text-slate-100 mb-4 flex items-center gap-2">
-              🌐 Polymarket Piyasaları
-            </h2>
-            <MarketsGrid />
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-1 h-5 rounded-full bg-blue-500" />
+              <h2 className="text-sm font-semibold text-zinc-200 tracking-tight">Polymarket Piyasaları</h2>
+            </div>
+            <div className="bg-[#111318] rounded-xl border border-white/[0.06] p-4 shadow-[0px_0px_0px_1px_rgba(255,255,255,0.03),0px_4px_16px_rgba(0,0,0,0.3)]">
+              <MarketsGrid />
+            </div>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-700/50 mt-16 bg-slate-900/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-            <div className="text-center md:text-left">
-              <p className="text-slate-400 text-sm">© 2025 - 2026 TRDEFI LTD</p>
-              <div className="text-slate-500 text-xs mt-1 space-y-0.5">
-                <p>Company number 14367961</p>
-                <p>Suite 419, Office 408, Screenworks 22 Highbury Grove, London, United Kingdom, N5 2ER</p>
-                <p>Contact: <a href="mailto:info@trdefi.com" className="text-blue-400 hover:text-blue-300 transition-colors">info@trdefi.com</a></p>
-              </div>
+      {/* ── Footer ── */}
+      <footer className="border-t border-white/[0.04] mt-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="text-[11px] text-zinc-600 space-y-0.5">
+              <p>© 2025–2026 TRDEFI LTD · Company 14367961</p>
+              <p>Suite 419, Screenworks 22 Highbury Grove, London N5 2ER</p>
             </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-slate-700/50 text-xs text-slate-500 text-center">
-            <p>Bu bir açık kaynak projesidir. Polymarket ile resmi olarak bağlantılı değildir.</p>
+            <div className="text-[11px] text-zinc-600">
+              <a href="mailto:info@trdefi.com" className="text-zinc-500 hover:text-sky-400 transition-colors">info@trdefi.com</a>
+            </div>
           </div>
         </div>
       </footer>
