@@ -1,21 +1,19 @@
 import MarketsGrid from '../components/MarketsGrid';
 import CryptoGrid from '../components/CryptoGrid';
-import EventsSection from '../components/EventsSection';
+import WeatherEvents from '../components/WeatherEvents';
 
 /**
  * Main landing page for Polymarket Turkish Investor Dashboard
- * Displays BTC live market + grid of active markets with Turkish translations
- * + AI-generated prediction events (LLM powered, TR-focused)
+ * 50/50 layout: Left column (AI-generated events), Right column (Polymarket)
  */
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-slate-900/80 border-b border-slate-700/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div className="flex items-center space-x-3">
-              {/* Logo: TRDEFI gold/black */}
               <img src="/logo.jpg" alt="TRDEFI" className="w-12 h-12 rounded-xl object-cover shadow-lg" />
               <div>
                 <h1 className="text-xl md:text-2xl font-bold gradient-text">
@@ -37,20 +35,36 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Crypto 5-Dakika Grid */}
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Crypto 5-Dakika Grid (top, full width) */}
         <CryptoGrid />
 
-        {/* Polymarket Markets */}
-        <MarketsGrid />
+        {/* 50/50 Split: Generated Events | Polymarket */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+          {/* LEFT COLUMN: AI Generated Events */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-lg">🤖</span>
+              <h2 className="text-lg font-bold text-slate-100">Oluşturulan Olaylar</h2>
+              <span className="text-[10px] text-slate-500 bg-slate-700/50 px-2 py-0.5 rounded-full">Şablon-based</span>
+            </div>
+            <WeatherEvents />
+          </section>
 
-        {/* AI Generated Events */}
-        <EventsSection />
+          {/* RIGHT COLUMN: Polymarket */}
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-lg">📊</span>
+              <h2 className="text-lg font-bold text-slate-100">Polymarket Pazarları</h2>
+            </div>
+            <MarketsGrid />
+          </section>
+        </div>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-slate-700/50 mt-16 bg-slate-900/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
             <div className="text-center md:text-left">
               <p className="text-slate-400 text-sm">
