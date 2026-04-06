@@ -1,7 +1,132 @@
 'use client';
 
+import { useState, useRef } from 'react';
 import { t } from '../lib/translations';
 import { translateQuestion } from '../lib/autoTranslate';
+
+/* ─── Trade Modal ─── */
+function TradeModal({ market, choice, onClose }) {
+  const overlayRef = useRef(null);
+  const [amount, setAmount] = useState('');
+  const { question } = market;
+  const questionTr = translateQuestion(question);
+
+  const rawOutcomes = JSON.parse(market.outcomes || '[]');
+  const isMatchup = rawOutcomes.length >= 2
+    && !rawOutcomes[0].toLowerCase().includes('yes')
+    && !rawOutcomes[0].toLowerCase().includes('no');
+
+  const label = isMatchup ? rawOutcomes[choice === 0 ? 0 : 1] : (choice === 0 ? 'EVET' : 'HAYIR');
+
+  const priceList = (market._livePrices && market._livePrices.length === 2)
+    ? market._livePrices
+    : JSON.parse(market.outcomePrices || '[]').map(Number);
+  const price = priceList[choice] || 0;
+  const potentialReturn = amount ? (parseFloat(amount) / Math.max(price, 0.01)).toFixed(2) : '—';
+
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
+      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+    >
+      <div className="bg-[#1a1d28] rounded-2xl border border-slate-700/50 w-[380px] max-w-[95vw] overflow-hidden shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-700/50">
+          <div className="flex-1 min-w-0 mr-3">
+            <div className="text-sm font-semibold text-white truncate">{questionTr}</div>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-white text-xl leading-none transition-colors">×</button>
+        </div>
+
+        {/* Choice Badge */}
+        <div className="px-5 pt-4">
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+            choice === 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+          }`}>
+            {choice === 0 ? '✓ EVET' : '✗ HAYIR'}
+          </div>
+        </div>
+
+        {/* Price */}
+        <div className="px-5 pt-3 pb-4">
+          <div className="text-xl font-bold text-white">{(price * 100).toFixed(1)}¢</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Piyasa fiyatı</div>
+        </div>
+
+        {/* Currency Selector */}
+        <div className="px-5 pb-3">
+          <label className="text-xs text-slate-400 mb-1.5 block">Ödeme Yöntemi</label>
+          <div className="flex gap-2">
+            {[
+              { name: 'USDT', icon: '₮', bg: '#26a17b' },
+              { name: 'USDC', icon: '$', bg: '#2775ca' },
+              { name: 'DAI', icon: '◈', bg: '#f5af31' },
+            ].map((c, i) => (
+              <div
+                key={c.name}
+                className={`flex-1 flex items-center gap-1.5 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+                  i === 0 ? 'border-green-500/50 bg-green-500/5' : 'border-slate-700/50 bg-slate-800/50'
+                }`}
+              >
+                <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold" style={{ backgroundColor: c.bg }}>
+                  {c.icon}
+                </div>
+                <span className="text-xs font-medium text-slate-300">{c.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Amount Input */}
+        <div className="px-5 pb-4">
+          <label className="text-xs text-slate-400 mb-1.5 block">Miktar Girin (USD)</label>
+          <div className="relative">
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              className="w-full bg-slate-900/80 border border-slate-700/50 rounded-lg px-4 py-2.5 text-white text-sm font-mono placeholder:text-slate-600 focus:border-blue-500 focus:outline-none transition-colors"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">USD</span>
+          </div>
+        </div>
+
+        {/* Estimated Return */}
+        {amount && parseFloat(amount) > 0 && (
+          <div className="mx-5 mb-4 p-3 bg-slate-900/50 rounded-lg border border-slate-700/30">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">Tahmini Getiri</span>
+              <span className="text-white font-bold">${potentialReturn}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="px-5 pb-5 flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-lg border border-slate-700/50 text-slate-400 text-sm font-medium hover:bg-slate-800/50 transition-colors"
+          >
+            İptal
+          </button>
+          <button
+            className="flex-1 py-2.5 rounded-lg text-white text-sm font-bold transition-all hover:opacity-90"
+            style={{
+              background: choice === 0
+                ? 'linear-gradient(135deg, #22c55e, #16a34a)'
+                : 'linear-gradient(135deg, #ef4444, #dc2626)',
+            }}
+          >
+            {choice === 0 ? '🟢 Tahmini Onayla' : '🔴 Tahmini Onayla'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function BidCard({ market, priceChange }) {
   const {
@@ -14,6 +139,8 @@ export default function BidCard({ market, priceChange }) {
     active = true,
     _livePrices,
   } = market;
+
+  const [modal, setModal] = useState(null); // { choice: 0|1 }
 
   const questionTr = translateQuestion(question);
   const isBtc5min = market.isBtc5min === true;
@@ -103,6 +230,7 @@ export default function BidCard({ market, priceChange }) {
   };
 
   return (
+    <>
     <div className={`bg-slate-800/90 rounded-xl border overflow-hidden transition-all duration-200 hover:shadow-lg ${
       hasLive ? 'border-blue-500/20 hover:border-blue-400/40'
       : isBtc5min ? 'border-amber-500/20 hover:border-amber-400/40'
@@ -126,7 +254,7 @@ export default function BidCard({ market, priceChange }) {
           {isBtc5min ? `BTC ${questionTr}` : questionTr}
         </h3>
 
-        {/* Outcomes */}
+        {/* Outcomes — now clickable */}
         <div className="flex gap-1.5">
           {outcomeList.map((outcome, i) => {
             const price = priceList[i] || 0;
@@ -136,8 +264,9 @@ export default function BidCard({ market, priceChange }) {
             return (
               <div
                 key={i}
-                className="flex-1 rounded-lg p-2"
+                className="flex-1 rounded-lg p-2 cursor-pointer hover:opacity-80 active:scale-95 transition-all"
                 style={{ backgroundColor: getBgColor(i) }}
+                onClick={() => setModal({ choice: i })}
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-1 min-w-0">
@@ -195,5 +324,14 @@ export default function BidCard({ market, priceChange }) {
         )}
       </div>
     </div>
+
+    {modal && (
+      <TradeModal
+        market={market}
+        choice={modal.choice}
+        onClose={() => setModal(null)}
+      />
+    )}
+    </>
   );
 }
