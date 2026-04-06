@@ -21,7 +21,10 @@ export default function Home() {
                 <p className="text-slate-400 text-xs md:text-sm">Gerçek zamanlı veriler</p>
               </div>
             </div>
-            <div className="mt-3 md:mt-0">
+            <div className="mt-3 md:mt-0 flex items-center gap-3">
+              <a href="/past-log" className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-600 hover:bg-violet-500 text-white transition-all border border-violet-400/30">
+                📋 Geçmiş Tahminler
+              </a>
               <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 pulse-glow">
                 <span className="w-2 h-2 mr-2 bg-emerald-400 rounded-full animate-pulse"></span>
                 Canlı
