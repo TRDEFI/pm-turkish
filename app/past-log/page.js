@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-const SUPABASE_URL = 'https://aytotwrddgjbstcprbev.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5dG90d3JkZGdjYnN0Y3ByYmV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTMzMDAsImV4cCI6MjA5MDk4OTMwMH0.FgCB3RqtEQVmBypndva4RZQHPW_uref_Vt-OqTigZW8';
+const SUPABASE_URL = 'https://aeykrdfsghbmrnjcxqyu.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFleWtyZGZzZ2hibXJuamN4cXl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0OTQxMTMsImV4cCI6MjA5MTA3MDExM30.DAA_oUpX3FGv-kaK_ap2XcQJLB7n7uwPPy76xP4j5zc';
 
 async function supabaseQuery(endpoint, params = { select: '*', order: 'created_at.desc', limit: 50 }) {
   const qs = new URLSearchParams(params).toString();
@@ -86,17 +86,17 @@ export default function PastLogPage() {
 
   async function loadLlmEvents() {
     setSupabaseStatus('querying');
-    const rows = await supabaseQuery('events');
-    const sorted = rows ? rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 50) : [];
-
-    if (rows === null) {
-      setSupabaseStatus('error');
-    } else if (sorted.length === 0) {
-      setSupabaseStatus('empty');
-    } else {
+    try {
+      const res = await fetch('/.netlify/functions/fetch-events?past=true');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setLlmEvents(Array.isArray(data) ? data : []);
       setSupabaseStatus('ok');
+    } catch (e) {
+      console.error('LLM Events load error:', e);
+      setSupabaseStatus('error');
+      setLlmEvents([]);
     }
-    setLlmEvents(sorted);
   }
 
   const fCorrect = forexData.filter(e => e.correct).length;
