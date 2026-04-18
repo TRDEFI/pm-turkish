@@ -1,6 +1,7 @@
 // Netlify Function - Submit a vote on an event
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Netlify env vars: SUPABASE_URL, SERVICE_ROLE_KEY (matches Netlify dashboard names)
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://hglivebdukoxdjmasycj.supabase.co';
+const SERVICE_ROLE_KEY = process.env.SERVICE_ROLE_KEY;
 
 exports.handler = async (event) => {
   // CORS preflight
@@ -29,6 +30,10 @@ exports.handler = async (event) => {
 
     if (!['EVET', 'HAYIR'].includes(choice)) {
       return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'choice must be EVET or HAYIR' }) };
+    }
+
+    if (!SERVICE_ROLE_KEY) {
+      return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Server misconfigured: missing service key' }) };
     }
 
     // Verify event exists and is active
