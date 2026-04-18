@@ -3,7 +3,7 @@
 // ?past=false/absent → returns active events (homepage)
 // ?category=kripto-5dk → filter by category
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SERVICE_ROLE = process.env.SERVICE_ROLE_KEY;
 
 function getApiKey() {
   return SERVICE_ROLE;
@@ -34,6 +34,23 @@ exports.handler = async (event) => {
     const query = buildQuery(params);
     const url = `${SUPABASE_URL}/rest/v1/events${query}`;
 
+    // Debug: log what we're using
+    console.log('SUPABASE_URL:', SUPABASE_URL ? 'SET' : 'UNDEFINED');
+    console.log('SERVICE_ROLE:', SERVICE_ROLE ? 'SET' : 'UNDEFINED');
+    console.log('URL:', url ? 'SET' : 'UNDEFINED');
+
+    if (!SUPABASE_URL || !SERVICE_ROLE) {
+      return {
+        statusCode: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: 'Missing env vars',
+          hasUrl: !!SUPABASE_URL,
+          hasKey: !!SERVICE_ROLE
+        })
+      };
+    }
+
     const res = await fetch(url, {
       headers: {
         'apikey': apiKey,
@@ -43,7 +60,11 @@ exports.handler = async (event) => {
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      throw new Error(`Supabase ${res.status}: ${body.slice(0,200)}`);
+      return {
+        statusCode: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: `Supabase ${res.status}: ${body.slice(0, 200)}` })
+      };
     }
 
     const data = await res.json();
@@ -54,6 +75,7 @@ exports.handler = async (event) => {
       body: JSON.stringify(data)
     };
   } catch (error) {
-    return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: error.message }) };
+    console.error('fetch-events error:', error.message);
+    return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: error.message, stack: error.stack }) };
   }
 };
