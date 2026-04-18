@@ -4,7 +4,7 @@
 //            (2) Hardcoded Turkish prediction events
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SERVICE_ROLE_KEY = process.env.SERVICE_ROLE_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GATEIO_BASE = 'https://api.gateio.ws/api/v4/spot';
 
@@ -150,6 +150,9 @@ async function insertEvents(events) {
 // ─── Main handler ────────────────────────────────────────────────────────
 exports.handler = async () => {
   console.log('⏰ generate-events @', new Date().toISOString());
+  console.log('SUPABASE_URL:', SUPABASE_URL ? 'SET' : 'UNDEFINED');
+  console.log('SERVICE_ROLE_KEY:', SERVICE_ROLE_KEY ? 'SET' : 'UNDEFINED');
+  console.log('OPENROUTER_API_KEY:', OPENROUTER_API_KEY ? 'SET' : 'UNDEFINED');
 
   try {
     // 5-min crypto events from real Gate.io klines
