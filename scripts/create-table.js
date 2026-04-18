@@ -1,6 +1,6 @@
 // Create the events table in Supabase
-const SUPABASE_URL = 'https://aytotwrddgjbstcprbev.supabase.co';
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5dG90d3JkZGdqYnN0Y3ByYmV2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTQxMzMwMCwiZXhwIjoyMDkwOTg5MzAwfQ.byZ7ht0VJrcY_nUMakbBaq_IY-6OaKhcqjZvf4b9oI8';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const createTableSQL = `
 CREATE TABLE IF NOT EXISTS events (

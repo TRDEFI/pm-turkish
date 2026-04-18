@@ -1,9 +1,9 @@
 // Netlify Function - Fetch events from Supabase
 // If ?past=true → returns all events (past log, including active)
 // If ?past=false/absent → returns active events (homepage)
-const SUPABASE_URL = 'https://aeykrdfsghbmrnjcxqyu.supabase.co';
-const SERVICE_ROLE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFleWtyZGZzZ2hibXJuamN4cXl1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTQ5NDExMywiZXhwIjoyMDkxMDcwMTEzfQ.ZU7Ct9IwmSG4Pe79MbL2g2bykGihyZdnoXwOxC8Pids';
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFleWtyZGZzZ2hibXJuamN4cXl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0OTQxMTMsImV4cCI6MjA5MTA3MDExM30.DAA_oUpX3FGv-kaK_ap2XcQJLB7n7uwPPy76xP4j5zc';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 function getApiKey() {
   return SERVICE_ROLE;

@@ -1,8 +1,8 @@
 // Netlify Scheduled Function - Generates prediction events every 15 minutes
 // Trigger: scheduled every 15 min via netlify.toml
 // NEW PROJECT: aeykrdfsghbmrnjcxqyu (hardcoded to avoid env var issues)
-const SUPABASE_URL = 'https://aeykrdfsghbmrnjcxqyu.supabase.co';
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFleWtyZGZzZ2hibXJuamN4cXl1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTQ5NDExMywiZXhwIjoyMDkxMDcwMTEzfQ.ZU7Ct9IwmSG4Pe79MbL2g2bykGihyZdnoXwOxC8Pids';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 const CATEGORIES = ['hava-durumu', 'ekonomi', 'spor', 'gundem', 'teknoloji', 'kultur-sanat'];
@@ -147,7 +147,7 @@ exports.handler = async (event, context) => {
       status: 'active',
       llm_reasoning: 'Generated from news analysis'
     }));
-    const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/events`, {
+    const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/events?select=id`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
