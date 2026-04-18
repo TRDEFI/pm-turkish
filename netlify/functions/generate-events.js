@@ -59,7 +59,7 @@ async function generateEventsFromNews(newsItems) {
         'HTTP-Referer': 'https://pm-turkish.netlify.app'
       },
       body: JSON.stringify({
-        model: 'openrouter/free',
+        model: 'openrouter/elephant-alpha',
         messages: [
           {
             role: 'system',
