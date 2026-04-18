@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS events (
   option_yes TEXT DEFAULT 'EVET',
   option_no TEXT DEFAULT 'HAYIR',
   deadline TIMESTAMPTZ NOT NULL,
-  references JSONB DEFAULT '[]',
+  "references" JSONB DEFAULT '[]',
   status TEXT DEFAULT 'active',
   result TEXT DEFAULT NULL,
   total_yes_bet NUMERIC DEFAULT 0,
@@ -66,12 +66,12 @@ async function main() {
   
   if (checkRes.status === 200 || checkRes.status === 404) {
     console.log('Need to create the table manually. Please run this SQL in Supabase Dashboard:');
-    console.log('Go to: https://aytotwrddgjbstcprbev.supabase.co/project/default/sql/new');
+    console.log('Go to: https://hglivebdukoxdjmasycj.supabase.co/project/default/sql/new');
     console.log('---');
     console.log(createTableSQL);
   } else if (checkRes.status === 400) {
     console.log('Table does not exist. Please run the SQL in Supabase Dashboard.');
-    console.log('Go to: https://aytotwrddgjbstcprbev.supabase.co/project/default/sql/new');
+    console.log('Go to: https://hglivebdukoxdjmasycj.supabase.co/project/default/sql/new');
     console.log('');
     console.log('Copy and paste this:');
     console.log('---');

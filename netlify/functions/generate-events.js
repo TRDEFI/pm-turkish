@@ -1,6 +1,5 @@
 // Netlify Scheduled Function - Generates prediction events every 15 minutes
 // Trigger: scheduled every 15 min via netlify.toml
-// NEW PROJECT: aeykrdfsghbmrnjcxqyu (hardcoded to avoid env var issues)
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
@@ -143,7 +142,7 @@ exports.handler = async (event, context) => {
       question: e.question,
       category: e.category || 'gundem',
       deadline: e.deadline,
-      ref_links: e.sources || [],
+      references: e.sources || [],
       status: 'active',
       llm_reasoning: 'Generated from news analysis'
     }));
