@@ -1,225 +1,135 @@
-// Netlify Scheduled Function - Generates prediction events every 15 minutes
-// Trigger: scheduled every 15 min via netlify.toml
-// Also generates 5-minute crypto events (kripto-5dk) every 5 minutes
+// Netlify Scheduled Function - Generates prediction events every 5 minutes
+// Schedule: */5 * * * * (from netlify.toml)
+// Generates: (1) 5-min crypto events from real Gate.io kline data
+//            (2) Hardcoded Turkish prediction events
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-
 const GATEIO_BASE = 'https://api.gateio.ws/api/v4/spot';
-const CATEGORIES = ['hava-durumu', 'ekonomi', 'spor', 'gundem', 'teknoloji', 'kultur-sanat'];
 
-// ─── Gate.io helpers (server-side, no CORS) ───────────────────────────────────
-async function gateTickers(pair) {
+// ─── Gate.io: fetch 5m candles ───────────────────────────────────────────
+async function gate5mKlines(pair, limit = 3) {
   const symbol = pair.replace('USDT', '_USDT');
-  const res = await fetch(`${GATEIO_BASE}/tickers?currency_pair=${symbol}`);
+  const url = `${GATEIO_BASE}/candlesticks?currency_pair=${symbol}&interval=5m&limit=${limit}`;
+  const res = await fetch(url);
   if (!res.ok) return null;
-  const data = await res.json();
-  return data?.[0] ? parseFloat(data[0].last) : null;
+  return res.json(); // [ts_sec, quote_vol, close, high, low, open, base_vol, is_closed]
 }
 
-async function gate5mKline(pair) {
-  const symbol = pair.replace('USDT', '_USDT');
-  const res = await fetch(`${GATEIO_BASE}/candlesticks?currency_pair=${symbol}&interval=5m&limit=1`);
-  if (!res.ok) return null;
-  const data = await res.json();
-  // Gate format: [timestamp_ms, quote_volume, close, high, low, open, base_volume]
-  if (!data || !data[0]) return null;
-  return {
-    close: parseFloat(data[0][2]),
-    open: parseFloat(data[0][5]),
-    high: parseFloat(data[0][3]),
-    low: parseFloat(data[0][4]),
-    timestamp: parseInt(data[0][0]) * 1000,
-  };
-}
-
-async function gatePrices() {
-  const [btc, eth, xrp] = await Promise.all([
-    gateTickers('BTCUSDT'),
-    gateTickers('ETHUSDT'),
-    gateTickers('XRPUSDT'),
-  ]);
-  return { btc, eth, xrp };
-}
-
-// ─── 5-minute crypto events ───────────────────────────────────────────────────
+// ─── Crypto 5-min events from real Gate.io data ─────────────────────────
 const CRYPTO_5M = [
-  { symbol: 'BTC', pair: 'BTCUSDT', decimals: 0, yRange: 100, icon: '₿', accent: '#f7931a' },
-  { symbol: 'ETH', pair: 'ETHUSDT', decimals: 2, yRange: 5,   icon: 'Ξ',  accent: '#627eea' },
-  { symbol: 'XRP', pair: 'XRPUSDT', decimals: 4, yRange: 0.005, icon: '✕', accent: '#00aae4' },
+  { symbol: 'BTC', pair: 'BTCUSDT', decimals: 0, yRange: 100,  icon: '₿', color: '#f7931a' },
+  { symbol: 'ETH', pair: 'ETHUSDT', decimals: 2, yRange: 5,    icon: 'Ξ',  color: '#627eea' },
+  { symbol: 'XRP', pair: 'XRPUSDT', decimals: 4, yRange: 0.005, icon: '✕', color: '#00aae4' },
 ];
 
-function thresholdFrom(price, yRange) {
-  return +(price + yRange / 2).toFixed(yRange < 1 ? 6 : 0);
-}
-
-function next5MinDeadline() {
-  const now = Date.now();
-  // Round up to next 5-minute mark
-  const ms = now;
-  const rem = ms % (5 * 60 * 1000);
-  const next5 = rem === 0 ? ms : ms + (5 * 60 * 1000 - rem);
-  return new Date(next5 + 5 * 60 * 1000).toISOString(); // window closes 5 min after open
+// Round timestamp DOWN to nearest 5-min boundary
+function floor5min(tsMs) {
+  return tsMs - (tsMs % (5 * 60 * 1000));
 }
 
 async function generate5MinEvents() {
-  const prices = await gatePrices();
-  const deadline = next5MinDeadline();
-
   const events = [];
 
   for (const c of CRYPTO_5M) {
-    let price = null;
-    let openPrice = null;
+    const klines = await gate5mKlines(c.pair, 2);
+    if (!klines || klines.length < 1) {
+      console.log(`  ${c.symbol}: no kline data`);
+      continue;
+    }
 
-    if (c.symbol === 'BTC' && prices.btc) price = prices.btc;
-    if (c.symbol === 'ETH' && prices.eth) price = prices.eth;
-    if (c.symbol === 'XRP' && prices.xrp) price = prices.xrp;
+    // Last closed 5-min candle (index 0 = most recent)
+    const last = klines[0];
+    const tsSec = parseInt(last[0]);          // e.g. 1776554700
+    const openPrice = parseFloat(last[5]);    // window open price
+    const closePrice = parseFloat(last[2]);   // window close price
 
-    if (price === null) continue;
+    // Threshold: mid of yRange above the close price
+    const threshold = +(closePrice + c.yRange / 2).toFixed(c.decimals);
 
-    openPrice = price; // use current price as opening reference
+    // Deadline: window closes at tsSec+300, then resolution 5 min later → +600 sec
+    // But we want the event to close 5 min AFTER the window opens
+    // window_open = tsSec (rounded down), window_close = tsSec + 300
+    // deadline = window_close + 300 = tsSec + 600
+    const deadlineMs = (tsSec + 600) * 1000;
+    const deadline = new Date(deadlineMs).toISOString();
 
-    // Threshold = mid point of yRange around current price
-    const threshold = thresholdFrom(price, c.yRange);
-    const question = `${c.icon} ${c.symbol} — Sonraki 5 dakikada $${threshold.toFixed(c.decimals)} seviyesini geçer mi?`;
+    const question = `${c.icon} ${c.symbol}/TRY — Sonraki 5 dakikada $${threshold.toFixed(c.decimals)} geçer mi?`;
 
     events.push({
       question,
       category: 'kripto-5dk',
       deadline,
-      references: [{ title: 'Gate.io', url: `https://www.gate.io/tr/trade/${c.pair}` }],
+      references: [{ title: `Gate.io ${c.symbol}/USDT 5dk`, url: `https://www.gate.io/tr/trade/${c.pair}` }],
       status: 'active',
       opening_price: openPrice,
       threshold,
       price_source: 'gateio',
-      llm_reasoning: '5-min crypto window from Gate.io',
+      llm_reasoning: `Gate.io 5m kline: window=${new Date(tsSec * 1000).toISOString()}, open=$${openPrice}, close=$${closePrice}`,
     });
+
+    console.log(`  ${c.symbol}: open=${openPrice}, close=${closePrice}, threshold=${threshold}, deadline=${deadline}`);
   }
 
   return events;
 }
 
-// ─── News-based LLM events ────────────────────────────────────────────────────
-async function fetchTurkeyNews() {
-  const queries = [
-    'Turkey news today 2025',
-    'Türkiye gündem haberler bugün',
-    'Turkey weather forecast today',
-    'Borsa İstanbul döviz bugün',
-    'Türkiye spor haberleri bugün'
-  ];
-
-  const newsItems = [];
-  for (const q of queries) {
-    try {
-      const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`, {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      });
-      if (res.ok) {
-        const html = await res.text();
-        const titleRegex = /class="result__a"[^>]*>([^<]+)<\/a>/g;
-        const urlRegex = /class="result__a" href="([^"]+)"/g;
-        let tMatch, uMatch;
-        const titles = [];
-        const urls = [];
-        while ((tMatch = titleRegex.exec(html)) !== null) titles.push(tMatch[1].trim());
-        while ((uMatch = urlRegex.exec(html)) !== null) urls.push(uMatch[1]);
-        for (let i = 0; i < Math.min(2, titles.length); i++) {
-          newsItems.push({ title: titles[i], url: urls[i] || '' });
-        }
-      }
-    } catch (e) {
-      console.error('News fetch error:', e.message);
-    }
-  }
-  return newsItems;
-}
-
-async function generateEventsFromNews(newsItems) {
-  const today = new Date().toISOString().split('T')[0];
+// ─── Hardcoded Turkish events ───────────────────────────────────────────
+async function generateStaticEvents() {
   const deadline = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-  const newsSummary = newsItems.map((n, i) => `${i + 1}. ${n.title} (${n.url || 'URL Yok'})`).join('\n');
+  const templates = [
+    {
+      question: '🏦 TCMB bu hafta faiz artırır mı?',
+      category: 'ekonomi',
+      sources: [{ title: 'TCMB', url: 'https://www.tcmb.gov.tr/' }],
+    },
+    {
+      question: '📈 Borsa İstanbul (BIST 100) bu hafta yükselir mi?',
+      category: 'ekonomi',
+      sources: [{ title: 'KAP', url: 'https://www.kap.org.tr/' }],
+    },
+    {
+      question: '⚽ Fenerbahçe bu sezon şampiyonluğu kazanır mı?',
+      category: 'spor',
+      sources: [{ title: 'TFF', url: 'https://www.tff.org/' }],
+    },
+    {
+      question: '🌍 Global piyasalar bu hafta yükselişte mi?',
+      category: 'ekonomi',
+      sources: [{ title: 'Bloomberg', url: 'https://www.bloomberg.com/markets' }],
+    },
+    {
+      question: '💵 Dolar/TL kuru 35 TL\'yi geçer mi?',
+      category: 'ekonomi',
+      sources: [{ title: 'TCMB', url: 'https://www.tcmb.gov.tr/kurlar' }],
+    },
+  ];
 
-  let response = null;
-  const maxRetries = 3;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://pm-turkish.netlify.app'
-      },
-      body: JSON.stringify({
-        model: 'openrouter/elephant-alpha',
-        messages: [
-          {
-            role: 'system',
-            content: `Sen bir Türk tahmin platformu için event (olay) üreticisisin.
-Görevin: Güncel haberlerden ve trendlerden yola çıkarak EVET/HAYIR tahmin soruları oluşturmak.
+  // Deduplicate against active events
+  const active = await fetch(`${SUPABASE_URL}/rest/v1/events?status=eq.active&select=question`, {
+    headers: { 'apikey': SERVICE_ROLE_KEY, 'Authorization': `Bearer ${SERVICE_ROLE_KEY}` }
+  }).then(r => r.ok ? r.json() : []);
 
-KURALLAR:
-- Her soru 24 saat içinde net bir şekilde çözülebilmeli
-- Sorular EVET veya HAYIR ile cevaplanabilmeli
-- Manipüle edilemez, kanıtlanabilir olmalı
-- "Yarın İstanbul'da yağmur yağacak mı?" gibi somut sorular
-- "Birisi X yapacak mı" gibi spekulatif sorular OLMAZ
-- Mutlaka referans linki (haber kaynağı) ekle
-- JSON formatında yanıt ver, başka hiçbir şey yazma
+  const activeQs = new Set(active.map(e => e.question.toLowerCase()));
 
-BUGÜN: ${today}
-
-GÜNCEL HABERLER:
-${newsSummary}`
-          },
-          {
-            role: 'user',
-            content: `Bana tam 3 adet Türkiye temalı EVET/HAYIR tahmin sorusu üret.
-Format: Sadece JSON array olarak yanıt ver:
-[
-  {
-    "question": "Soru metni Türkçe",
-    "category": "hava-durumu|ekonomi|spor|gundem|teknoloji|kultur-sanat",
-    "deadline": "${deadline}",
-    "sources": [{"title": "Haber başlığı", "url": "https://..."}]
-  }
-]`
-          }
-        ],
-        temperature: 0.8,
-        max_tokens: 1500
-      })
-    });
-    if (response.ok) break;
-    console.warn(`OpenRouter attempt ${attempt} failed: ${response.status}`);
-    if (attempt < maxRetries) await new Promise(r => setTimeout(r, 2000 * attempt));
-  }
-  if (!response.ok) throw new Error(`OpenRouter error: ${response.status} ${response.statusText}`);
-  const data = await response.json();
-  let content = data.choices?.[0]?.message?.content || '';
-  const jsonMatch = content.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) throw new Error('LLM did not return valid JSON array');
-  return JSON.parse(jsonMatch[0]);
+  return templates
+    .filter(t => !activeQs.has(t.question.toLowerCase()))
+    .map(t => ({
+      question: t.question,
+      category: t.category,
+      deadline,
+      references: t.sources,
+      status: 'active',
+      llm_reasoning: 'Static Turkish prediction event',
+    }));
 }
 
-async function checkDuplicateEvents(events) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/events?select=question&status=eq.active`, {
-    headers: {
-      'apikey': SERVICE_ROLE_KEY,
-      'Authorization': `Bearer ${SERVICE_ROLE_KEY}`
-    }
-  });
-  if (!res.ok) return events;
-  const existing = await res.json();
-  const existingQuestions = existing.map(e => e.question.toLowerCase());
-  return events.filter(e => !existingQuestions.includes(e.question.toLowerCase()));
-}
-
+// ─── Supabase insert helper ──────────────────────────────────────────────
 async function insertEvents(events) {
-  if (events.length === 0) return 0;
-  const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/events?select=id`, {
+  if (!events.length) { console.log('  Nothing to insert'); return 0; }
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/events?select=id`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -229,59 +139,39 @@ async function insertEvents(events) {
     },
     body: JSON.stringify(events)
   });
-  if (!insertRes.ok) {
-    const errBody = await insertRes.text();
-    throw new Error(`Supabase insert error: ${insertRes.status} - ${errBody}`);
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Insert failed: ${res.status} ${err}`);
   }
+  console.log(`  Inserted ${events.length} event(s)`);
   return events.length;
 }
 
-// ─── Main handler ─────────────────────────────────────────────────────────────
-exports.handler = async (event, context) => {
+// ─── Main handler ────────────────────────────────────────────────────────
+exports.handler = async () => {
+  console.log('⏰ generate-events @', new Date().toISOString());
+
   try {
-    console.log('🔄 Scheduled event: Generating prediction events...');
+    // 5-min crypto events from real Gate.io klines
+    console.log('₿ Fetching Gate.io 5m klines...');
+    const crypto5 = await generate5MinEvents();
+    const ins5 = await insertEvents(crypto5);
+    console.log(`  → ${ins5} crypto events inserted`);
 
-    // ── 1. Generate 5-minute crypto events ──
-    console.log('₿ Generating 5-minute crypto events from Gate.io...');
-    const fiveMinEvents = await generate5MinEvents();
-    console.log(`  Generated ${fiveMinEvents.length} 5-min events`);
+    // Static Turkish events
+    console.log('📰 Generating static events...');
+    const statics = await generateStaticEvents();
+    const insS = await insertEvents(statics);
+    console.log(`  → ${insS} static events inserted`);
 
-    // Remove duplicates for 5-min events (same question already active)
-    const unique5m = await checkDuplicateEvents(fiveMinEvents);
-    const inserted5m = await insertEvents(unique5m);
-    console.log(`  Inserted ${inserted5m} 5-min events`);
-
-    // ── 2. Generate LLM news events ──
-    console.log('📰 Fetching Turkey news...');
-    const news = await fetchTurkeyNews();
-    console.log(`Found ${news.length} news items`);
-
-    console.log('🤖 Calling LLM to generate events...');
-    const rawEvents = await generateEventsFromNews(news);
-    console.log(`LLM generated ${rawEvents.length} events`);
-
-    const uniqueNews = await checkDuplicateEvents(rawEvents);
-    const insertedNews = await insertEvents(uniqueNews.map(e => ({
-      question: e.question,
-      category: e.category || 'gundem',
-      deadline: e.deadline,
-      references: e.sources || [],
-      status: 'active',
-      llm_reasoning: 'Generated from news analysis'
-    })));
-    console.log(`Inserted ${insertedNews} news events`);
+    console.log(`✅ Done: ${ins5} crypto + ${insS} static`);
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        message: `Generated ${insertedNews} news + ${inserted5m} crypto events`,
-      })
+      body: JSON.stringify({ crypto: ins5, static: insS, time: new Date().toISOString() })
     };
-  } catch (error) {
-    console.error('❌ Error in scheduled event generation:', error.message);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: error.message })
-    };
+  } catch (err) {
+    console.error('❌ Error:', err.message);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
