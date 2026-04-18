@@ -6,6 +6,8 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
-# Scheduled function - LLM event generator (every 15 minutes)
+# Scheduled function - generates both 5dk crypto events and LLM news events
+# 5dk events: every 5 min (new 5-min windows)
+# News events: every 15 min (rate-limited by dedup check)
 [functions.generate-events]
-  schedule = "*/15 * * * *"
+  schedule = "*/5 * * * *"

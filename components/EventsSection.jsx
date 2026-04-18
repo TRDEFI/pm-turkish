@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 const REFRESH_INTERVAL = 30000; // 30 seconds
+const STORAGE_KEY = 'pmturkish_votes';
 
 const CATEGORY_EMOJIS = {
   'hava-durumu': '🌤️',
@@ -11,6 +12,8 @@ const CATEGORY_EMOJIS = {
   'gundem': '📰',
   'teknoloji': '💻',
   'kultur-sanat': '🎭',
+  'kripto-5dk': '⚡',
+  'kripto-gun': '📈',
   'genel': '🌐',
 };
 
@@ -21,8 +24,34 @@ const CATEGORY_NAMES = {
   'gundem': 'Gündem',
   'teknoloji': 'Teknoloji',
   'kultur-sanat': 'Kültür & Sanat',
+  'kripto-5dk': 'Kripto 5dk',
+  'kripto-gun': 'Kripto Gün',
   'genel': 'Genel',
 };
+
+function getStoredVotes() {
+  if (typeof localStorage === 'undefined') return {};
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  } catch { return {}; }
+}
+
+function setStoredVote(eventId, choice) {
+  const votes = getStoredVotes();
+  votes[eventId] = choice;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(votes));
+}
+
+async function submitVote(eventId, choice) {
+  const res = await fetch('/.netlify/functions/submit-vote', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event_id: eventId, choice }),
+  });
+  if (!res.ok) throw new Error('Vote failed');
+  setStoredVote(eventId, choice);
+  return true;
+}
 
 export default function EventsSection() {
   const [events, setEvents] = useState([]);
@@ -30,16 +59,17 @@ export default function EventsSection() {
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
   const [fetching, setFetching] = useState(false);
+  const [votedEvents, setVotedEvents] = useState({});
+  const [votingIn, setVotingIn] = useState(null); // eventId currently voting
 
   const loadEvents = useCallback(async (silent = false) => {
     if (!silent) setFetching(true);
     setError(null);
     try {
-      const res = await fetch('/.netlify/functions/fetch-events');
+      const res = await fetch('/.netlify/functions/fetch-events?past=false');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-
       if (Array.isArray(data) && data.length > 0) {
         setEvents(data);
         setLastUpdate(Date.now());
@@ -53,11 +83,28 @@ export default function EventsSection() {
     }
   }, []);
 
-  useEffect(() => { loadEvents(false); }, [loadEvents]);
+  useEffect(() => {
+    setVotedEvents(getStoredVotes());
+    loadEvents(false);
+  }, [loadEvents]);
+
   useEffect(() => {
     const timer = setInterval(() => loadEvents(true), REFRESH_INTERVAL);
     return () => clearInterval(timer);
   }, [loadEvents]);
+
+  const handleVote = useCallback(async (eventId, choice) => {
+    if (votedEvents[eventId]) return; // already voted
+    setVotingIn(eventId);
+    try {
+      await submitVote(eventId, choice);
+      setVotedEvents(prev => ({ ...prev, [eventId]: choice }));
+    } catch (err) {
+      console.error('Vote error:', err);
+    } finally {
+      setVotingIn(null);
+    }
+  }, [votedEvents]);
 
   const formatDeadline = (deadline) => {
     if (!deadline) return '';
@@ -67,7 +114,7 @@ export default function EventsSection() {
     if (diff <= 0) return 'Süre doldu';
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}s ${mins}dk kaldı`;
+    return hours > 0 ? `${hours}s ${mins}dk kaldı` : `${mins}dk kaldı`;
   };
 
   const timeAgo = () => {
@@ -117,7 +164,7 @@ export default function EventsSection() {
       {error && (
         <div className="bg-slate-800/50 rounded-xl p-6 text-center mb-4 border border-slate-700/30">
           <p className="text-slate-400 text-sm mb-2">Henüz otomatik olay oluşturulmadı</p>
-          <p className="text-slate-500 text-xs">İlk olaylar 15 dakika içinde oluşturulacak...</p>
+          <p className="text-slate-500 text-xs">İlk olaylar birazdan oluşturulacak...</p>
         </div>
       )}
 
@@ -134,7 +181,10 @@ export default function EventsSection() {
           {events.map(event => {
             const emoji = CATEGORY_EMOJIS[event.category] || '🌐';
             const catName = CATEGORY_NAMES[event.category] || event.category;
-            const sources = event.ref_links || [];
+            const sources = event.references || [];
+            const userVote = votedEvents[event.id];
+            const isVoting = votingIn === event.id;
+            const isExpired = event.deadline ? new Date(event.deadline) < new Date() : false;
 
             return (
               <div key={event.id}
@@ -156,8 +206,43 @@ export default function EventsSection() {
                     <div className="text-[10px] text-slate-400 font-medium">
                       {formatDeadline(event.deadline)}
                     </div>
+                    {isExpired && (
+                      <div className="text-[10px] text-amber-400 mt-0.5">Süre doldu</div>
+                    )}
                   </div>
                 </div>
+
+                {/* Vote buttons */}
+                {!isExpired && (
+                  <div className="flex gap-2 mb-3">
+                    {userVote ? (
+                      <div className={`flex-1 py-2 rounded-lg text-center text-xs font-bold border ${
+                        userVote === 'EVET'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                          : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                      }`}>
+                        ✓ {userVote} — Oylanmış
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleVote(event.id, 'EVET')}
+                          disabled={isVoting}
+                          className="flex-1 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-all active:scale-[0.97] disabled:opacity-50"
+                        >
+                          {isVoting ? 'Oylanıyor...' : '✓ EVET'}
+                        </button>
+                        <button
+                          onClick={() => handleVote(event.id, 'HAYIR')}
+                          disabled={isVoting}
+                          className="flex-1 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold hover:bg-rose-500/20 transition-all active:scale-[0.97] disabled:opacity-50"
+                        >
+                          {isVoting ? 'Oylanıyor...' : '✗ HAYIR'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
 
                 {/* Reference Links */}
                 {sources.length > 0 && (

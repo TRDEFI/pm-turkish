@@ -1,19 +1,26 @@
 // Netlify Function - Fetch events from Supabase
-// If ?past=true → returns all events (past log, including active)
-// If ?past=false/absent → returns active events (homepage)
+// ?past=true → returns all events (past log)
+// ?past=false/absent → returns active events (homepage)
+// ?category=kripto-5dk → filter by category
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 function getApiKey() {
   return SERVICE_ROLE;
 }
 
-function buildQuery(past) {
-  if (past) {
-    return '?order=created_at.desc&select=*';
+function buildQuery(params) {
+  const conditions = [];
+  if (params.past === 'true') {
+    conditions.push('status=eq.resolved');
+  } else if (params.past === 'false') {
+    conditions.push('status=eq.active');
   }
-  return '?status=eq.active&order=created_at.desc&select=*';
+  if (params.category) {
+    conditions.push(`category=eq.${params.category}`);
+  }
+  const where = conditions.length > 0 ? conditions.join('&') : 'status=eq.active';
+  return `?${where}&order=deadline.asc&select=*`;
 }
 
 exports.handler = async (event) => {
@@ -22,10 +29,9 @@ exports.handler = async (event) => {
       return { statusCode: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type' }, body: '' };
     }
 
-    const isPast = event.queryStringParameters?.past === 'true';
+    const params = event.queryStringParameters || {};
     const apiKey = getApiKey();
-
-    const query = buildQuery(isPast);
+    const query = buildQuery(params);
     const url = `${SUPABASE_URL}/rest/v1/events${query}`;
 
     const res = await fetch(url, {
