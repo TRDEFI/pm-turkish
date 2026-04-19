@@ -25,7 +25,7 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
   const loadHistory = useCallback(async () => {
     try {
       const r = await fetch(
-        `https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair=${pair}&interval=1m&limit=60`
+        `https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair=${pair}&interval=1m&limit=30`
       );
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json();
@@ -140,9 +140,8 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
       },
       rightPriceScale: {
         borderColor: 'rgba(255,255,255,0.06)',
-        // Tight scale — tiny margins = Y-axis fills almost the whole height
-        scaleMargins: { top: 0.02, bottom: 0.02 },
-        autoScale: false,
+        scaleMargins: { top: 0.05, bottom: 0.05 },
+        autoScale: true,
       },
       timeScale: {
         borderColor: 'rgba(255,255,255,0.06)',
