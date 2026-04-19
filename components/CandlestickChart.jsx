@@ -8,60 +8,65 @@ function formatPrice(p) {
   return `$${p.toFixed(2)}`;
 }
 
-export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, showVolume = false }) {
+export default function CandlestickChart({ pair = 'BTC_USDT', height = 260 }) {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
-  const candleSeriesRef = useRef(null);
-  const volumeSeriesRef = useRef(null);
+  const lineSeriesRef = useRef(null);
   const [price, setPrice] = useState(null);
-  const [prevPrice, setPrevPrice] = useState(null);
   const [change, setChange] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const wsRef = useRef(null);
   const reconnectRef = useRef(null);
+  const colorRef = useRef('#34d399');
 
-  // Fetch initial 1m candlestick data (last 60 candles)
+  // Fetch last 20 x 1m candles — tight window for narrow Y-axis
   const loadHistory = useCallback(async () => {
     try {
       const r = await fetch(
-        `https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair=${pair}&interval=1m&limit=30`
+        `https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair=${pair}&interval=1m&limit=20`
       );
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json();
-      // Gate returns: [timestamp_sec, quote_vol, close, high, low, open, base_vol, is_closed]
+      // Gate: [ts_sec, quote_vol, close, high, low, open, base_vol, is_closed]
       const candles = data
         .filter(c => c[7] === true)
         .map(c => ({
           time: parseInt(c[0]),
-          open: parseFloat(c[5]),
-          high: parseFloat(c[3]),
-          low: parseFloat(c[4]),
-          close: parseFloat(c[2]),
+          value: parseFloat(c[2]), // close price
         }));
 
-      if (candleSeriesRef.current && candles.length > 0) {
-        candleSeriesRef.current.setData(candles);
+      if (lineSeriesRef.current && candles.length > 0) {
+        lineSeriesRef.current.setData(candles);
         const last = candles[candles.length - 1];
         const first = candles[0];
-        setPrice(last.close);
-        setPrevPrice(first.open);
-        setChange(((last.close - first.open) / first.open * 100).toFixed(2));
+        setPrice(last.value);
 
-        // Tight X-axis: last 30 candles
-        const nowSec = Math.floor(Date.now() / 1000);
-        chartRef.current.timeScale().setVisibleRange({ from: nowSec - 30 * 60, to: nowSec + 60 });
+        const chg = ((last.value - first.value) / first.value * 100).toFixed(2);
+        setChange(chg);
+
+        // Line color based on direction
+        const isUp = last.value >= first.value;
+        colorRef.current = isUp ? '#34d399' : '#f43f5e';
+        lineSeriesRef.current.applyOptions({
+          color: colorRef.current,
+          lineStyle: 0,
+        });
+        setChange(chg);
+
+        // Let Y-axis auto-fit to visible data (tight range)
+        chartRef.current.timeScale().fitContent();
       }
 
       setLoading(false);
     } catch (err) {
-      console.error('[CandlestickChart] load error:', err);
+      console.error('[LineChart] load error:', err);
       setError(err.message);
       setLoading(false);
     }
   }, [pair]);
 
-  // WebSocket for real-time 1m candle updates
+  // Gate.io WebSocket for real-time price updates
   const connectWS = useCallback(() => {
     const ws = new WebSocket(`wss://api.gateio.ws/ws/v4/`, 'gateio-ws');
 
@@ -83,27 +88,28 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
 
         const bar = {
           time: parseInt(tick.t),
-          open: parseFloat(tick.o),
-          high: parseFloat(tick.h),
-          low: parseFloat(tick.l),
-          close: parseFloat(tick.c),
+          value: parseFloat(tick.c),
         };
 
-        if (candleSeriesRef.current) {
-          candleSeriesRef.current.update(bar);
+        if (lineSeriesRef.current) {
+          lineSeriesRef.current.update(bar);
         }
 
-        setPrevPrice(p => {
-          setPrice(bar.close);
-          if (p) setChange(((bar.close - p) / p * 100).toFixed(2));
-          return p;
-        });
+        setPrice(bar.value);
+
+        // Update color on direction change
+        const prev = colorRef.current;
+        const isUp = bar.value >= (tick.o ? parseFloat(tick.o) : bar.value);
+        const newColor = isUp ? '#34d399' : '#f43f5e';
+        if (newColor !== prev) {
+          colorRef.current = newColor;
+          lineSeriesRef.current.applyOptions({ color: newColor });
+        }
       } catch {}
     };
 
     ws.onerror = () => ws.close();
     ws.onclose = () => { reconnectRef.current = setTimeout(connectWS, 3000); };
-
     wsRef.current = ws;
   }, [pair]);
 
@@ -112,7 +118,7 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
     connectWS();
     return () => {
       if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
-      if (reconnectRef.current) { clearTimeout(reconnectRef.current); reconnectRef.current = null; }
+      if (reconnectRef.current) { clearTimeout(reconnectRef.current); }
     };
   }, [loadHistory, connectWS]);
 
@@ -135,13 +141,12 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: 'rgba(251,191,36,0.4)', width: 1, style: 2 },
-        horzLine: { color: 'rgba(251,191,36,0.4)', width: 1, style: 2 },
+        vertLine: { color: 'rgba(251,191,36,0.4)', width: 1, style: 2, labelBackgroundColor: '#f97316' },
+        horzLine: { color: 'rgba(251,191,36,0.4)', width: 1, style: 2, labelBackgroundColor: '#f97316' },
       },
       rightPriceScale: {
         borderColor: 'rgba(255,255,255,0.06)',
-        scaleMargins: { top: 0.05, bottom: 0.05 },
-        autoScale: true,
+        scaleMargins: { top: 0.08, bottom: 0.08 },
       },
       timeScale: {
         borderColor: 'rgba(255,255,255,0.06)',
@@ -152,28 +157,20 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
       handleScale: { mouseWheel: true, axisPressedMouseMove: true },
     });
 
-    // Candlestick series
-    const candleSeries = chart.addCandlestickSeries({
-      upColor: '#34d399',
-      downColor: '#f43f5e',
-      borderUpColor: '#34d399',
-      borderDownColor: '#f43f5e',
-      wickUpColor: '#34d399',
-      wickDownColor: '#f43f5e',
+    // Pure line series — close price only (Polymarket-style)
+    const lineSeries = chart.addLineSeries({
+      color: '#34d399',
+      lineWidth: 2,
+      priceLineWidth: 1,
+      lastValueVisible: false,
+      priceLineVisible: false,
+      crosshairMarkerVisible: true,
+      crosshairMarkerRadius: 4,
+      crosshairMarkerBorderColor: '#ffffff',
+      crosshairMarkerBackgroundColor: '#f97316',
     });
 
-    // Volume histogram (optional)
-    if (showVolume) {
-      const volSeries = chart.addHistogramSeries({
-        color: 'rgba(251,191,36,0.2)',
-        priceFormat: { type: 'volume' },
-        priceScaleId: '',
-      });
-      volSeries.priceScale().applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
-      volumeSeriesRef.current = volSeries;
-    }
-
-    candleSeriesRef.current = candleSeries;
+    lineSeriesRef.current = lineSeries;
     chartRef.current = chart;
 
     const resizeObserver = new ResizeObserver(entries => {
@@ -186,17 +183,17 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
     return () => {
       resizeObserver.disconnect();
       chart.remove();
-      candleSeriesRef.current = null;
+      lineSeriesRef.current = null;
       chartRef.current = null;
     };
-  }, [height, showVolume]);
+  }, [height]);
 
   const priceColor = change > 0 ? '#34d399' : change < 0 ? '#f43f5e' : '#94a3b8';
   const changeSign = change > 0 ? '+' : '';
 
   return (
     <div className="relative">
-      {/* Price header */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-2 px-1">
         <div className="flex items-center gap-3">
           <span className="text-base font-black text-white tabular-nums">
@@ -216,7 +213,7 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
         </div>
       </div>
 
-      {/* Chart */}
+      {/* Line chart */}
       <div ref={containerRef} className="w-full rounded-xl overflow-hidden" />
 
       {loading && (
@@ -229,7 +226,7 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
       {error && (
         <div className="absolute inset-0 flex items-center justify-center rounded-xl"
           style={{ background: 'rgba(7,8,16,0.7)' }}>
-          <span className="text-xs text-slate-500">Chart yüklenemedi</span>
+          <span className="text-xs text-slate-500">Grafik yüklenemedi</span>
         </div>
       )}
     </div>
