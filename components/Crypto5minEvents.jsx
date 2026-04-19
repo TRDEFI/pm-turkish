@@ -217,7 +217,7 @@ export default function Crypto5minEvents() {
                 )}
               </div>
             </div>
-            <CandlestickChart pair="BTC_USDT" height={220} />
+            <CandlestickChart pair="BTC_USDT" height={220} threshold={btcEvent.threshold} deadline={btcEvent.deadline} />
           </div>
         </div>
       )}
