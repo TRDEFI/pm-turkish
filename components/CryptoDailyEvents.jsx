@@ -161,9 +161,27 @@ export default function CryptoDailyEvents() {
 
           return (
             <div key={evt.id || symbol}
-              className="group relative bg-[#0f1420] rounded-xl border border-white/5 hover:border-amber-500/30 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-amber-500/5">
-              {/* Top accent */}
-              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-500/0 via-amber-400 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              className="group relative rounded-xl border overflow-hidden transition-all duration-300"
+              style={{
+                background: 'linear-gradient(135deg, #0d1020 0%, #0f1420 100%)',
+                borderColor: `${meta.color}18`,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.03)',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = `${meta.color}40`;
+                e.currentTarget.style.boxShadow = `0 0 30px ${meta.color}18, 0 8px 40px rgba(0,0,0,0.4)`;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = `${meta.color}18`;
+                e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.03)';
+              }}>
+              {/* Top neon line */}
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
+                background: `linear-gradient(90deg, transparent, ${meta.color}, transparent)`,
+                boxShadow: `0 0 10px ${meta.color}`,
+                opacity: 0.5,
+              }} />
 
               <div className="p-4">
                 {/* Header */}
@@ -215,13 +233,14 @@ export default function CryptoDailyEvents() {
                 {/* Progress bar */}
                 {currentPrice && threshold > 0 && (
                   <div className="mb-4">
-                    <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-1000 ease-out"
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                      <div className="h-full rounded-full transition-all duration-1000"
                         style={{
                           width: `${Math.min(100, (currentPrice / (threshold * (diff >= 0 ? 1.1 : 1.0))) * 100)}%`,
                           background: diff >= 0
                             ? `linear-gradient(90deg, ${meta.color}cc, ${meta.color})`
                             : 'linear-gradient(90deg, #3b82f6, #06b6d4)',
+                          boxShadow: diff >= 0 ? `0 0 8px ${meta.color}` : '0 0 8px #3b82f6',
                         }} />
                     </div>
                   </div>
@@ -230,10 +249,22 @@ export default function CryptoDailyEvents() {
                 {/* EVET / HAYIR */}
                 {!isExpired && (
                   <div className="grid grid-cols-2 gap-2">
-                    <button className="py-2 px-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 active:scale-[0.97] transition-all">
+                    <button className="py-2 px-3 rounded-lg text-xs font-black uppercase tracking-wider transition-all active:scale-[0.97]"
+                      style={{
+                        background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)',
+                        color: '#34d399', boxShadow: '0 0 12px rgba(52,211,153,0.1)',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.boxShadow='0 0 20px rgba(52,211,153,0.25)'}
+                      onMouseLeave={e => e.currentTarget.style.boxShadow='0 0 12px rgba(52,211,153,0.1)'}>
                       ✓ EVET
                     </button>
-                    <button className="py-2 px-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold hover:bg-rose-500/20 active:scale-[0.97] transition-all">
+                    <button className="py-2 px-3 rounded-lg text-xs font-black uppercase tracking-wider transition-all active:scale-[0.97]"
+                      style={{
+                        background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)',
+                        color: '#f43f5e', boxShadow: '0 0 12px rgba(244,63,94,0.1)',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.boxShadow='0 0 20px rgba(244,63,94,0.25)'}
+                      onMouseLeave={e => e.currentTarget.style.boxShadow='0 0 12px rgba(244,63,94,0.1)'}>
                       ✗ HAYIR
                     </button>
                   </div>

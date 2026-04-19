@@ -218,13 +218,44 @@ async function generateFXEvents() {
 
   const rates = await Promise.all(pairs.map(async p => ({ ...p, price: await fetchFX(p.base, p.target) })));
 
-  // Tomorrow 23:59 Turkey time = UTC+3 23:59 → UTC 20:59
-  const tomorrow = new Date(Date.now() + 86400000);
-  tomorrow.setUTCHours(20, 59, 0, 0);
-  const deadline = tomorrow.toISOString();
+  // Forex markets: CLOSED all day Saturday and Sunday (reopens Sun 22:00 UTC)
+  // Friday close: 22:00 UTC. If today is Fri/Sat/Sun, deadline = coming Monday 22:00 UTC
+  // Otherwise deadline = same-day Friday 22:00 UTC (next 24h)
+  const now = new Date();
+  const dow = now.getUTCDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
+
+  let deadlineDate;
+  if (dow === 0) {
+    // Sunday → deadline = Monday 22:00 UTC
+    deadlineDate = new Date(Date.now());
+    deadlineDate.setUTCDate(deadlineDate.getUTCDate() + 1);
+    deadlineDate.setUTCHours(22, 0, 0, 0);
+  } else if (dow === 5) {
+    // Friday → deadline = Saturday 22:00 UTC (market still open for ~24h)
+    deadlineDate = new Date(Date.now());
+    deadlineDate.setUTCDate(deadlineDate.getUTCDate() + 1);
+    deadlineDate.setUTCHours(22, 0, 0, 0);
+  } else if (dow === 6) {
+    // Saturday → deadline = Monday 22:00 UTC
+    deadlineDate = new Date(Date.now());
+    deadlineDate.setUTCDate(deadlineDate.getUTCDate() + 2);
+    deadlineDate.setUTCHours(22, 0, 0, 0);
+  } else {
+    // Mon–Thu: deadline = Friday 22:00 UTC of this week
+    deadlineDate = new Date(Date.now());
+    const daysUntilFri = (5 - dow + 7) % 7 || 7;
+    deadlineDate.setUTCDate(deadlineDate.getUTCDate() + daysUntilFri);
+    deadlineDate.setUTCHours(22, 0, 0, 0);
+  }
+
+  const deadline = deadlineDate.toISOString();
+
+  // Format the deadline day for display in Turkish
+  const trDays = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+  const deadlineDay = trDays[deadlineDate.getUTCDay()];
 
   return rates.map(r => ({
-    question: `${r.icon} ${r.symbol}/TRY — yarın 23:59 GMT+3'e kadar ${r.threshold.toFixed(r.decimals)}₺ üzerine çıkar mı?`,
+    question: `${r.icon} ${r.symbol}/TRY — Bu ${deadlineDay} TSİ 23:59'da ${r.threshold.toFixed(r.decimals)}₺ üzerine çıkar mı?`,
     category: 'doviz',
     deadline,
     threshold: r.threshold,
