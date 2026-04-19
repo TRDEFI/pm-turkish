@@ -194,8 +194,16 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
       volumeSeriesRef.current = volSeries;
     }
 
+    // Set visible range to last 30 candles for tight Y-axis (Polymarket-style)
+    const nowSec = Math.floor(Date.now() / 1000);
+    chart.timeScale().setVisibleRange({
+      from: (nowSec - 30 * 60) ,
+      to: nowSec + 60,
+    });
+
     candleSeriesRef.current = candleSeries;
     chartRef.current = chart;
+
 
     // Handle resize
     const resizeObserver = new ResizeObserver(entries => {
