@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createChart, ColorType, CrosshairMode } from 'lightweight-charts';
 
-const REFRESH_INTERVAL = 5000; // Update chart every 5 seconds
-
 function formatPrice(p) {
   if (p >= 1000) return `$${p.toFixed(0)}`;
   return `$${p.toFixed(2)}`;
@@ -23,7 +21,7 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
   const wsRef = useRef(null);
   const reconnectRef = useRef(null);
 
-  // Fetch initial candlestick data (last 60 x 1m candles)
+  // Fetch initial 1m candlestick data (last 60 candles)
   const loadHistory = useCallback(async () => {
     try {
       const r = await fetch(
@@ -32,9 +30,8 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json();
       // Gate returns: [timestamp_sec, quote_vol, close, high, low, open, base_vol, is_closed]
-      // Convert to lightweight-charts format
       const candles = data
-        .filter(c => c[7] === true) // only closed candles
+        .filter(c => c[7] === true)
         .map(c => ({
           time: parseInt(c[0]),
           open: parseFloat(c[5]),
@@ -50,10 +47,10 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
         setPrice(last.close);
         setPrevPrice(first.open);
         setChange(((last.close - first.open) / first.open * 100).toFixed(2));
-        chartRef.current.timeScale().fitContent();
 
-        // Set target price line
-        const threshold = last.close; // approximate
+        // Tight X-axis: last 30 candles
+        const nowSec = Math.floor(Date.now() / 1000);
+        chartRef.current.timeScale().setVisibleRange({ from: nowSec - 30 * 60, to: nowSec + 60 });
       }
 
       setLoading(false);
@@ -64,13 +61,9 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
     }
   }, [pair]);
 
-  // WebSocket for real-time updates
+  // WebSocket for real-time 1m candle updates
   const connectWS = useCallback(() => {
-    const wsPair = pair.replace('_', '');
-    const ws = new WebSocket(
-      `wss://api.gateio.ws/ws/v4/`,
-      'gateio-ws'
-    );
+    const ws = new WebSocket(`wss://api.gateio.ws/ws/v4/`, 'gateio-ws');
 
     ws.onopen = () => {
       ws.send(JSON.stringify({
@@ -108,14 +101,8 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
       } catch {}
     };
 
-    ws.onerror = () => {
-      ws.close();
-    };
-
-    ws.onclose = () => {
-      // Reconnect after 3s
-      reconnectRef.current = setTimeout(connectWS, 3000);
-    };
+    ws.onerror = () => ws.close();
+    ws.onclose = () => { reconnectRef.current = setTimeout(connectWS, 3000); };
 
     wsRef.current = ws;
   }, [pair]);
@@ -123,16 +110,9 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
   useEffect(() => {
     loadHistory();
     connectWS();
-
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-      if (reconnectRef.current) {
-        clearTimeout(reconnectRef.current);
-        reconnectRef.current = null;
-      }
+      if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
+      if (reconnectRef.current) { clearTimeout(reconnectRef.current); reconnectRef.current = null; }
     };
   }, [loadHistory, connectWS]);
 
@@ -160,6 +140,9 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
       },
       rightPriceScale: {
         borderColor: 'rgba(255,255,255,0.06)',
+        // Tight scale — tiny margins = Y-axis fills almost the whole height
+        scaleMargins: { top: 0.02, bottom: 0.02 },
+        autoScale: false,
       },
       timeScale: {
         borderColor: 'rgba(255,255,255,0.06)',
@@ -170,8 +153,7 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
       handleScale: { mouseWheel: true, axisPressedMouseMove: true },
     });
 
-    // Candlestick series (orange/red based on direction)
-    // autoscale: true = Y-axis auto-fits to visible candle range (tight zoom)
+    // Candlestick series
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#34d399',
       downColor: '#f43f5e',
@@ -179,34 +161,22 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
       borderDownColor: '#f43f5e',
       wickUpColor: '#34d399',
       wickDownColor: '#f43f5e',
-      autoscale: true,
     });
 
-    // Volume histogram
+    // Volume histogram (optional)
     if (showVolume) {
       const volSeries = chart.addHistogramSeries({
         color: 'rgba(251,191,36,0.2)',
         priceFormat: { type: 'volume' },
         priceScaleId: '',
       });
-      volSeries.priceScale().applyOptions({
-        scaleMargins: { top: 0.85, bottom: 0 },
-      });
+      volSeries.priceScale().applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
       volumeSeriesRef.current = volSeries;
     }
-
-    // Set visible range to last 30 candles for tight X-axis (Polymarket-style time window)
-    const nowSec = Math.floor(Date.now() / 1000);
-    chart.timeScale().setVisibleRange({
-      from: nowSec - 30 * 60,
-      to: nowSec + 60,
-    });
 
     candleSeriesRef.current = candleSeries;
     chartRef.current = chart;
 
-
-    // Handle resize
     const resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         chart.applyOptions({ width: entry.contentRect.width });
@@ -218,7 +188,6 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
       resizeObserver.disconnect();
       chart.remove();
       candleSeriesRef.current = null;
-      volumeSeriesRef.current = null;
       chartRef.current = null;
     };
   }, [height, showVolume]);
@@ -236,11 +205,7 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
           </span>
           {change != null && (
             <span className="text-xs font-bold tabular-nums px-2 py-0.5 rounded-full"
-              style={{
-                color: priceColor,
-                background: `${priceColor}15`,
-                textShadow: `0 0 12px ${priceColor}60`,
-              }}>
+              style={{ color: priceColor, background: `${priceColor}15`, textShadow: `0 0 12px ${priceColor}60` }}>
               {changeSign}{change}%
             </span>
           )}
