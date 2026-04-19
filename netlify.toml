@@ -15,3 +15,9 @@
 # Generates: hava, kripto-gun, doviz events with OpenRouter AI
 [functions.generate-daily]
   schedule = "0 0 * * *"
+
+# ── AI comment pool (once per day at 06:00 UTC = 09:00 Istanbul) ──
+# Generates 50 Turkish AI comments in a SINGLE OpenRouter call (rate-limit safe)
+# Comments are stored in Supabase comment_pool (if table exists)
+[functions.generate-comments]
+  schedule = "0 6 * * *"

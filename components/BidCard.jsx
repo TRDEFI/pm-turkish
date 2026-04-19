@@ -182,7 +182,7 @@ function TradeModal({ market, choice, onClose }) {
 export default function BidCard({ market, priceChange }) {
   const {
     question, outcomes, outcomePrices, liquidityNum, volumeNum, endDate,
-    active = true, _livePrices,
+    active = true, _livePrices, ai_comments,
   } = market;
 
   const [modal, setModal] = useState(null);
@@ -376,6 +376,26 @@ export default function BidCard({ market, priceChange }) {
             <span className="inline-block w-1 h-1 rounded-full bg-blue-400 animate-pulse"
               style={{ boxShadow: '0 0 6px #3b82f6' }} />
             Canlı fiyat
+          </div>
+        )}
+
+        {/* AI Comments */}
+        {ai_comments && ai_comments.length > 0 && (
+          <div className="mt-2.5 pt-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+            <div className="flex items-center gap-1 mb-1.5">
+              <span className="text-[9px] text-slate-600">💬 AI Yorumlar</span>
+            </div>
+            <div className="space-y-1">
+              {ai_comments.slice(0, 2).map((c, i) => (
+                <div key={i} className="flex items-start gap-1.5 text-[9px] leading-snug"
+                  style={{ color: c.sentiment === 'bullish' ? '#34d399' : c.sentiment === 'bearish' ? '#f43f5e' : '#94a3b8' }}>
+                  <span className="shrink-0 mt-0.5">
+                    {c.sentiment === 'bullish' ? '📈' : c.sentiment === 'bearish' ? '📉' : '💬'}
+                  </span>
+                  <span className="italic">{c.text}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
