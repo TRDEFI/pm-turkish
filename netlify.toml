@@ -6,8 +6,12 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
-# Scheduled function - generates both 5dk crypto events and LLM news events
-# 5dk events: every 5 min (new 5-min windows)
-# News events: every 15 min (rate-limited by dedup check)
+# ── Crypto 5-minute events (every 5 min) ────────────────────────────────
+# Generates: kripto-5dk events from real Gate.io klines
 [functions.generate-events]
   schedule = "*/5 * * * *"
+
+# ── Daily events: weather + crypto-daily + FX (once per day at midnight UTC) ──
+# Generates: hava, kripto-gun, doviz events with OpenRouter AI
+[functions.generate-daily]
+  schedule = "0 0 * * *"
