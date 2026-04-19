@@ -126,8 +126,24 @@ async function generateStaticEvents() {
     }));
 }
 
-// ─── Supabase insert helper ──────────────────────────────────────────────
-async function insertEvents(events) {
+// ─── Cleanup: delete expired events (>24h old) to keep Supabase free-tier safe ───
+async function cleanupExpired(apiKey) {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  // Find IDs of expired events
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/events?status=eq.active&deadline=lt.${cutoff}&select=id`, {
+    headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}` }
+  });
+  if (!r.ok) return 0;
+  const expired = await r.json();
+  if (!expired.length) return 0;
+
+  const ids = expired.map(e => e.id).join(',');
+  const del = await fetch(`${SUPABASE_URL}/rest/v1/events?id=in.(${ids})`, {
+    method: 'DELETE',
+    headers: { 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}`, 'Prefer': 'return=minimal' }
+  });
+  return del.ok ? expired.length : 0;
+}
   if (!events.length) { console.log('  Nothing to insert'); return 0; }
   const res = await fetch(`${SUPABASE_URL}/rest/v1/events?select=id`, {
     method: 'POST',
@@ -155,6 +171,13 @@ exports.handler = async () => {
   console.log('OPENROUTER_API_KEY:', OPENROUTER_API_KEY ? 'SET' : 'UNDEFINED');
 
   try {
+    // Cleanup first — keep only last 24h of active events
+    console.log('🧹 Checking for expired events...');
+    const cleaned = await cleanupExpired(SERVICE_ROLE_KEY);
+    if (cleaned > 0) console.log(`  → Deleted ${cleaned} expired events`);
+    else console.log('  → No expired events found');
+
+
     // 5-min crypto events from real Gate.io klines
     console.log('₿ Fetching Gate.io 5m klines...');
     const crypto5 = await generate5MinEvents();

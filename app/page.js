@@ -221,7 +221,20 @@ export default function Home() {
             </div>
 
             {/* Right side */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-3">
+              {/* Stats (desktop) */}
+              <div className="hidden md:flex items-center gap-4 mr-2">
+                {[
+                  { val: '24/7', label: 'Aktif', color: '#34d399' },
+                  { val: 'Gate.io', label: 'Kaynak', color: '#38bdf8' },
+                  { val: 'Canlı', label: 'Veri', color: '#fbbf24' },
+                ].map(s => (
+                  <div key={s.label} className="text-center hidden md:block">
+                    <div className="text-[12px] font-black tabular-nums" style={{ color: s.color, textShadow: `0 0 10px ${s.color}60` }}>{s.val}</div>
+                    <div className="text-[8px] text-slate-600 uppercase tracking-wider">{s.label}</div>
+                  </div>
+                ))}
+              </div>
               <a href="/past-log"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all hover:opacity-80"
                 style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}>
@@ -249,9 +262,6 @@ export default function Home() {
 
       {/* Main */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10 relative" style={{ zIndex: 10 }}>
-
-        {/* Hero Stats */}
-        <HeroStats />
 
         {/* ── Kısa Süreli Tahminler ── */}
         <section>
