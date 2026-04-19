@@ -186,15 +186,15 @@ function SupabaseWeatherEvents() {
 
 // ─── Tab Config ─────────────────────────────────────────────────────────
 const TABS = [
-  { key: 'hava',       label: 'Hava',       emoji: '🌤️', Component: SupabaseWeatherEvents },
-  { key: 'kripto-gun', label: 'Kripto Gün',  emoji: '📈', component: null }, // handled below
-  { key: 'kripto-5dk', label: 'Kripto 5dk',  emoji: '⚡', component: null },
-  { key: 'doviz',      label: 'Döviz',       emoji: '💱', component: null },
-  { key: 'yakinda',    label: 'Yakında',     emoji: '🔜', component: null },
+  { key: 'hava',        label: 'Hava',        emoji: '🌤️', Component: SupabaseWeatherEvents },
+  { key: 'kripto-gun',  label: 'Kripto Gün',  emoji: '📈', component: null },
+  { key: 'kripto-5dk',  label: 'Kripto 5dk',  emoji: '⚡', component: null },
+  { key: 'doviz',       label: 'Döviz',       emoji: '💱', component: null },
+  { key: 'olusturulan', label: 'Oluşturulan', emoji: '🔮', component: null },
 ];
 
 // Lazy-load tab components to avoid circular deps
-let _cd, _c5, _fx;
+let _cd, _c5, _fx, _es;
 function getComponent(key) {
   if (key === 'kripto-gun') {
     if (!_cd) _cd = require('./CryptoDailyEvents').default;
@@ -208,29 +208,63 @@ function getComponent(key) {
     if (!_fx) _fx = require('./ForexEvents').default;
     return _fx;
   }
+  if (key === 'olusturulan') {
+    if (!_es) _es = require('./EventsSection').default;
+    return _es;
+  }
   return null;
 }
 
+const TAB_META = {
+  'hava':       { accent: '#38bdf8', glow: 'rgba(56,189,248,0.15)', label: 'Hava', emoji: '🌤️' },
+  'kripto-gun': { accent: '#fbbf24', glow: 'rgba(251,191,36,0.15)', label: 'Kripto Gün', emoji: '📈' },
+  'kripto-5dk': { accent: '#f97316', glow: 'rgba(249,115,22,0.15)', label: 'Kripto 5dk', emoji: '⚡' },
+  'doviz':      { accent: '#34d399', glow: 'rgba(52,211,153,0.15)', label: 'Döviz', emoji: '💱' },
+  'olusturulan':{ accent: '#a78bfa', glow: 'rgba(167,139,250,0.15)', label: 'Oluşturulan', emoji: '🔮' },
+};
+
 export default function GeneratedEventsSection() {
   const [activeTab, setActiveTab] = useState('hava');
+  const meta = TAB_META[activeTab] || TAB_META['hava'];
 
   return (
     <div>
       {/* Tab Bar */}
       <div className="flex flex-wrap gap-1.5 mb-5">
-        {TABS.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 min-w-[4rem] py-2 px-3 rounded-lg text-xs font-bold transition-all duration-200 ${
-              activeTab === tab.key
-                ? 'bg-sky-500/15 text-sky-300 border border-sky-500/25 shadow-lg shadow-sky-500/10'
-                : 'bg-slate-800/60 text-slate-500 border border-slate-700/40 hover:border-slate-600 hover:text-slate-300'
-            }`}
-          >
-            {tab.emoji} {tab.label}
-          </button>
-        ))}
+        {TABS.map(tab => {
+          const m = TAB_META[tab.key] || { accent: '#818cf8', glow: 'rgba(129,140,248,0.1)' };
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className="flex-1 min-w-[4rem] py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 border"
+              style={{
+                background: isActive ? m.glow : 'rgba(255,255,255,0.03)',
+                borderColor: isActive ? `${m.accent}40` : 'rgba(255,255,255,0.06)',
+                color: isActive ? m.accent : 'rgba(255,255,255,0.4)',
+                boxShadow: isActive ? `0 0 20px ${m.accent}20, inset 0 1px 0 rgba(255,255,255,0.05)` : 'none',
+                textShadow: isActive ? `0 0 20px ${m.accent}60` : 'none',
+              }}
+              onMouseEnter={e => {
+                if (!isActive) {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isActive) {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.4)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                }
+              }}
+            >
+              {tab.emoji} {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab Content */}
@@ -247,15 +281,10 @@ export default function GeneratedEventsSection() {
         const C = getComponent('doviz');
         return C ? <C /> : null;
       })()}
-      {activeTab === 'yakinda' && (
-        <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <span className="text-4xl">🔜</span>
-          <p className="text-slate-400 text-sm font-medium">Diğer event türleri hazırlanıyor...</p>
-          <p className="text-slate-600 text-xs text-center max-w-xs">
-            Polymarket entegrasyonu, tahmin oyunları ve daha fazlası yakında.
-          </p>
-        </div>
-      )}
+      {(activeTab === 'olusturulan') && (() => {
+        const C = getComponent('olusturulan');
+        return C ? <C /> : null;
+      })()}
     </div>
   );
 }
