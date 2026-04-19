@@ -55,7 +55,7 @@ async function generate5MinEvents() {
     const deadlineMs = (tsSec + 600) * 1000;
     const deadline = new Date(deadlineMs).toISOString();
 
-    const question = `${c.icon} ${c.symbol}/TRY — Sonraki 5 dakikada $${threshold.toFixed(c.decimals)} geçer mi?`;
+    const question = `${c.icon} ${c.symbol}/TRY Sonraki 5 dakikada $${threshold.toFixed(c.decimals)} gecer mi?`;
 
     events.push({
       question,
@@ -101,7 +101,7 @@ async function generateStaticEvents() {
       sources: [{ title: 'Bloomberg', url: 'https://www.bloomberg.com/markets' }],
     },
     {
-      question: '💵 Dolar/TL kuru 35 TL\'yi geçer mi?',
+      question: '💵 Dolar/TL kuru 35 TL\'yi gecer mi?,
       category: 'ekonomi',
       sources: [{ title: 'TCMB', url: 'https://www.tcmb.gov.tr/kurlar' }],
     },
