@@ -160,7 +160,6 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
       },
       rightPriceScale: {
         borderColor: 'rgba(255,255,255,0.06)',
-        scaleMargins: { top: 0.1, bottom: 0.2 },
       },
       timeScale: {
         borderColor: 'rgba(255,255,255,0.06)',
@@ -172,6 +171,7 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
     });
 
     // Candlestick series (orange/red based on direction)
+    // autoscale: true = Y-axis auto-fits to visible candle range (tight zoom)
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#34d399',
       downColor: '#f43f5e',
@@ -179,6 +179,7 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
       borderDownColor: '#f43f5e',
       wickUpColor: '#34d399',
       wickDownColor: '#f43f5e',
+      autoscale: true,
     });
 
     // Volume histogram
@@ -194,10 +195,10 @@ export default function CandlestickChart({ pair = 'BTC_USDT', height = 260, show
       volumeSeriesRef.current = volSeries;
     }
 
-    // Set visible range to last 30 candles for tight Y-axis (Polymarket-style)
+    // Set visible range to last 30 candles for tight X-axis (Polymarket-style time window)
     const nowSec = Math.floor(Date.now() / 1000);
     chart.timeScale().setVisibleRange({
-      from: (nowSec - 30 * 60) ,
+      from: nowSec - 30 * 60,
       to: nowSec + 60,
     });
 
