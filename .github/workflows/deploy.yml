@@ -25,6 +25,12 @@ jobs:
       - name: Run tests
         run: npx hardhat test
 
+      - name: Debug private key length
+        run: |
+          echo "Private key length: ${#PRIVATE_KEY}"
+          echo "First 4 chars: ${PRIVATE_KEY:0:4}"
+          echo "Last 4 chars: ${PRIVATE_KEY: -4}"
+
       - name: Deploy to Polygon Amoy
         env:
           POLYGON_RPC_URL: ${{ secrets.PMTURKISH }}
