@@ -1,0 +1,23 @@
+[build]
+  command = "next build"
+  publish = "out"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# ── Crypto 5-minute events (every 5 min) ────────────────────────────────
+# Generates: kripto-5dk events from real Gate.io klines
+[functions.generate-events]
+  schedule = "*/5 * * * *"
+
+# ── Daily events: weather + crypto-daily + FX (once per day at midnight UTC) ──
+# Generates: hava, kripto-gun, doviz events with OpenRouter AI
+[functions.generate-daily]
+  schedule = "0 0 * * *"
+
+# ── AI comment pool (once per day at 06:00 UTC = 09:00 Istanbul) ──
+# Generates 50 Turkish AI comments in a SINGLE OpenRouter call (rate-limit safe)
+# Comments are stored in Supabase comment_pool (if table exists)
+[functions.generate-comments]
+  schedule = "0 6 * * *"

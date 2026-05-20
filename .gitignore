@@ -1,16 +1,25 @@
 # Dependencies
 node_modules/
 package-lock.json
+.pnp
+.pnp.js
 
 # Build outputs
+.next/
+out/
+build/
 artifacts/
 cache/
 typechain-types/
+
+# Testing
+coverage/
 
 # Environment
 .env
 .env.local
 .env.*.local
+.env*.development
 
 # IDE
 .vscode/
@@ -25,9 +34,11 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Coverage
-coverage/
+# Misc
+.netlify
 
 # Slither
 slither.db.json
