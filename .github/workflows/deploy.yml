@@ -27,13 +27,13 @@ jobs:
 
       - name: Deploy to Polygon Amoy
         env:
-          POLYGON_RPC_URL: ${{ secrets.POLYGON_RPC_URL }}
-          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          POLYGON_RPC_URL: ${{ secrets.PMTURKISH }}
+          PRIVATE_KEY: ${{ secrets.PMTURKISH01 }}
         run: npx hardhat run scripts/deploy.js --network polygonAmoy
 
       - name: Verify on Polygonscan
         env:
-          POLYGONSCAN_API_KEY: ${{ secrets.POLYGONSCAN_API_KEY }}
+          POLYGONSCAN_API_KEY: ${{ secrets.PMTURKISH02 }}
         run: |
           echo "Contract verification requires deployed addresses"
           echo "Add verification step after deployment output is parsed"
