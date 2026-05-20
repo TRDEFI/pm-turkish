@@ -24,12 +24,12 @@ module.exports = {
     },
     polygonAmoy: {
       url: process.env.POLYGON_RPC_URL || "https://rpc-amoy.polygon.technology",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY.trim().startsWith("0x") ? process.env.PRIVATE_KEY.trim() : "0x" + process.env.PRIVATE_KEY.trim()] : [],
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY.replace(/\s/g, "").replace(/^0x/i, "")] : [],
       chainId: 80002,
     },
     polygon: {
       url: process.env.POLYGON_RPC_URL || "https://polygon-rpc.com",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY.trim().startsWith("0x") ? process.env.PRIVATE_KEY.trim() : "0x" + process.env.PRIVATE_KEY.trim()] : [],
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY.replace(/\s/g, "").replace(/^0x/i, "")] : [],
       chainId: 137,
     },
   },
