@@ -1,212 +1,262 @@
 # TRDEFI Prediction Market — Method of Statement
 
-**Versiyon:** 1.0  
-**Tarih:** 2026-04-05  
-**Durum:** Draft
+**Version:** 2.0  
+**Date:** 2026-05-21  
+**Status:** Active Development  
+**Repository:** https://github.com/TRDEFI/pm-turkish
 
 ---
 
-## 1. Platform Tanımı
+## 1. Project Overview
 
-TRDEFI Prediction Market, Türkiye odaklı bir tahmin platformudur. Kullanıcılar günlük olaylar (hava durumu, döviz kuru, spor sonuçları, teknoloji haberleri vb.) hakkında EVET/HAYIR tahmin yapar. Platform bir bilgi/trivia oyunudur — kumar veya bahis değildir.
+TRDEFI Prediction Market is a Turkey-focused prediction platform where users make YES/NO predictions on daily events (weather, exchange rates, sports results, technology news, etc.). The platform is an information/trivia game — not gambling or betting.
 
-**Prensip:** Kullanıcılar birbirine karşı oynar. Platform sadece altyapı, güvenlik ve adillik sağlar.
+**Principle:** Users play against each other. The platform only provides infrastructure, security, and fairness.
 
 ---
 
-## 2. Temel Kurallar (Parimutuel Sistemi)
+## 2. Core Rules (Parimutuel System)
 
-### 2.1 Bahis Mekanizması
-- Her event **EVET** veya **HAYIR** seçeneğine sahiptir.
-- Dinamik fiyatlandırma yok — sabit havuz sistemi.
-- Event süresi **maksimum 24 saat** ile sınırlıdır.
+### 2.1 Betting Mechanism
+- Each event has **YES** or **NO** options.
+- No dynamic pricing — fixed pool system.
+- Event duration is **maximum 24 hours**.
 
-### 2.2 Kazanç Hesaplama
-Event bittiğinde:
-1. Kaybeden tarafın toplam bahis miktarından **%10 platform komisyonu** kesilir.
-2. Kalan **%90** kaybeden havuz, kazanan tarafın bahis havuzuna eklenir.
-3. Kazananlar, kendi bahislerinin ağırlığına orantılı olarak dağıtım alır.
+### 2.2 Payout Calculation
+When an event ends:
+1. **10% platform commission** is deducted from the losing side's total bet amount.
+2. The remaining **90%** of the losing pool is added to the winning side's bet pool.
+3. Winners receive distribution proportional to their bet weight.
 
 ```
-Kazanç = (KullanıcıBahisi / KazananToplamBahis) × (KazananToplamBahis + KaybedenToplamBahis × 0.90)
+Payout = (UserBet / WinningTotalBet) × (WinningTotalBet + LosingTotalBet × 0.90)
 ```
 
-### 2.3 Örnek
-| Taraf | Bahis Toplamı |
-|-------|--------------|
-| EVET | 500 USDC |
-| HAYIR | 300 USDC |
-| **Sonuç** | EVET Kazandı |
+### 2.3 Example
+| Side | Total Bets |
+|------|-----------|
+| YES | 500 USDC |
+| NO | 300 USDC |
+| **Result** | YES Wins |
 
-- Kaybeden (HAYIR): 300 USDC
-  - Platform komisyonu (%10): **30 USDC**
-  - Kazanan havuza eklenen: **270 USDC**
-- Kazanan (EVET) toplam dağıtım: 500 + 270 = **770 USDC**
-- Alice (100 USDC EVET): 100 + (100/500) × 270 = **154 USDC** (+54 kar)
-- Bob (400 USDC EVET): 400 + (400/500) × 270 = **616 USDC** (+216 kar)
+- Loser (NO): 300 USDC
+  - Platform commission (10%): **30 USDC**
+  - Added to winner pool: **270 USDC**
+- Winner (YES) total distribution: 500 + 270 = **770 USDC**
+- Alice (100 USDC YES): 100 + (100/500) × 270 = **154 USDC** (+54 profit)
+- Bob (400 USDC YES): 400 + (400/500) × 270 = **616 USDC** (+216 profit)
 
-### 2.4 Likidite Riski Kuralı ⚠️
-Eğer event boyunca **tüm kullanıcılar aynı tarafı** seçmişse (sadece EVET veya sadece HAYIR):
-- Eğer o taraf **kaybederse** → platform tüm fonları alır (normal işleyiş).
-- Eğer o taraf **kazanırsa** → **event iptal edilir**, tüm bahisler iade edilir.
-- **Sebep:** Ödenecek kaybeden havuzu yoktur. Platform kendi cebinden ödeme yapmaz.
+### 2.4 Liquidity Risk Rule
+If all users bet on the same side during an event (only YES or only NO):
+- If that side **loses** → platform takes all funds (normal operation).
+- If that side **wins** → **event is cancelled**, all bets are refunded.
+- **Reason:** There is no losing pool to pay from. The platform does not pay from its own pocket.
 
-Bu kural hem platform korur hem de kullanıcıya adil davranır.
+This rule protects both the platform and ensures fairness for users.
 
 ---
 
-## 3. LLM — 4 Rol
+## 3. LLM — 4 Roles
 
-### 3.1 Event Generator (Olay Üretici)
-**Görev:** Gerçek zamanlı verilerden tahmin edilebilir event'ler oluşturur.
+### 3.1 Event Generator
+**Task:** Creates predictable events from real-time data.
 
-**Veri Kaynakları:**
-- Google Trends (Türkiye, 5dk aralık)
-- Haber siteleri RSS (NTV, Hürriyet, T24, Sözcü, Bianet)
+**Data Sources:**
+- Google Trends (Turkey, 5min interval)
+- News site RSS (NTV, Hürriyet, T24, Sözcü, Bianet)
 - Twitter/X Trends API
-- MGM (Meteoroloji Genel Müdürlüğü) API
-- Borsa İstanbul RSS
-- Döviz kuru API'leri
+- MGM (Meteorology General Directorate) API
+- Borsa Istanbul RSS
+- Exchange rate APIs
 
-**Filtrasyon Kriterleri (LLM Decision Matrix):**
-- ✅ Mantıklı ve açık uçlu mu?
-- ✅ 24 saat içinde çözülebilir mi?
-- ✅ Kanıtlanabilir kaynak var mı?
-- ✅ Manipüle edilmesi zor mu?
-- ✅ En az 2 bağımsız doğrulanabilir kaynak var mı?
-- ❌ "Kıyamet gelecek" → Reddet (kanıtlanamaz)
-- ❌ "X ünlüsü boşanacak" → Reddet (kaynak belirsiz)
-- ❌ "Seçimde hile var" → Reddet (kanıtlanamaz, subjektif)
+**Filtration Criteria (LLM Decision Matrix):**
+- Is it logical and open-ended?
+- Can it be resolved within 24 hours?
+- Is there a provable source?
+- Is it hard to manipulate?
+- Are there at least 2 independent verifiable sources?
 
-### 3.2 Fact Checker (Doğrulayıcı)
-**Görev:** Her event için oluşturulurken çoklu kaynak doğrulaması yapar.
+### 3.2 Fact Checker
+**Task:** Performs multi-source validation for each event upon creation.
 
-- En az 3 bağımsız kaynak karşılaştırması
-- Timestamp doğrulama (haber tarihi event tarihinden önce olmalı)
-- Çelişkili bilgi varsa → event reddedilir
+- Comparison of at least 3 independent sources
+- Timestamp verification (news date must be before event date)
+- If conflicting information → event is rejected
 
-### 3.3 Arbiter (Hakem)
-**Görev:** Event süresi dolunca sonucu belirler ve referans linkleri sunar.
+### 3.3 Arbiter
+**Task:** Determines the result when the event period ends and provides reference links.
 
-- LLM 24 saat sonunda tüm kaynakları tekrar tarar
-- Sonuç belirlenir (EVET veya HAYIR)
-- Referans linkleri event kartında gösterilir:
-  - 📰 Haber başlığı + URL
-  - 📊 Veri kaynağı + timestamp
-  - 🔗 Doğrulama linki
+- LLM scans all sources again after 24 hours
+- Result is determined (YES or NO)
+- Reference links are shown on the event card
 
-### 3.4 Wallet Manager (Cüzdan Yöneticisi)
-**Görev:** Event sonucu sonrası kullanıcı bakiyelerini yönetir.
+### 3.4 Wallet Manager
+**Task:** Manages user balances after event results.
 
-- Event bittiğinde:
-  - Kaybedenlerin bakiyesinden bahis tutarı düşülür
-  - Kazananların bakiyesine kazanç eklenir
-  - Platform komisyonu platform wallet'ına aktarılır
-  - Tüm işlemlerin log'u tutulur (audit purpose)
-- Kullanıcı withdrawal talep ederse → blockchain üzerinden on-chain transfer yapılır
+- When event ends:
+  - Loser balances are deducted by bet amount
+  - Winner balances are credited with winnings
+  - Platform commission is transferred to platform wallet
+  - All transactions are logged (audit purpose)
+- When user requests withdrawal → on-chain transfer via blockchain
 
 ---
 
-## 4. Mimari
+## 4. Architecture
 
-```
-┌──────────────────────────────────────────────┐
-│  VERİ KAYNAKLARI (5dk cron)                  │
-│  Google Trends │ TR Haber RSS │ MGM │ Borsa  │
-└──────────────┬───────────────────────────────┘
-               │
-               ▼
-┌──────────────────────────────────────────────┐
-│  LLM (Qwen/GPT-4 + Fine-tune)                │
-│  1. Event Generator → Event JSON             │
-│  2. Fact Checker → Multi-source validation   │
-│  3. Arbiter (24s sonra) → Sonuç + Referans   │
-│  4. Wallet Manager → Bakiye güncelleme        │
-└──────────────┬───────────────────────────────┘
-               │
-               ▼
-┌──────────────────────────────────────────────┐
-│  BACKEND (Node.js + PostgreSQL)               │
-│  → Event kayıt yönetimi                       │
-│  → Bahis kayıtları (off-chain)               │
-│  → Havuz hesaplama                           │
-│  → Wallet balance (görsel)                   │
-│  → Likidite riski kontrolü (kural 2.4)       │
-└──────────────┬───────────────────────────────┘
-               │
-               ▼
-┌──────────────────────────────────────────────┐
-│  BLOCKCHAIN (Polygon — TRDEFI Vault)          │
-│  Smart Contract:                              │
-│  → deposit() — Kullanıcı USDC yatırır        │
-│  → withdraw() — Kullanıcı USDC çeker         │
-│  → allocateToEvent() — Event'e fon ayır      │
-│  → distributeWinnings() — Kazananlara dağıt  │
-│                                              │
-│  Güvenlik: onlyOwner, pause, timelock        │
-└──────────────────────────────────────────────┘
-               │
-               ▼
-┌──────────────────────────────────────────────┐
-│  FRONTEND (Next.js — pm-turkish)              │
-│  → Event kartları (referans linkleri dahil)  │
-│  → EVET / HAYIR bahis butonları              │
-│  → Wallet balance gösterimi                  │
-│  → Transaction history                       │
-│  → Deposit / Withdrawal                      │
-└──────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph DataSources["Data Sources (5min cron)"]
+        GT[Google Trends]
+        RSS[TR News RSS]
+        MGM[MGM API]
+        BIST[Borsa Istanbul]
+    end
+
+    subgraph LLM["LLM Engine (Qwen/GPT-4)"]
+        EG[Event Generator]
+        FC[Fact Checker]
+        ARB[Arbiter]
+        WM[Wallet Manager]
+    end
+
+    subgraph Backend["Backend (Node.js + PostgreSQL)"]
+        EM[Event Management]
+        BR[Bet Records]
+        PC[Pool Calculation]
+        WB[Wallet Balance]
+        LR[Liquidity Risk Check]
+    end
+
+    subgraph Blockchain["Blockchain (Polygon)"]
+        VC[TRDEFI Vault Contract]
+        ERC[Event Resolver Contract]
+        DMC[Deposit Manager Contract]
+        USDC[USDC Token]
+    end
+
+    subgraph Frontend["Frontend (Next.js)"]
+        EC[Event Cards]
+        BB[Bet Buttons]
+        WD[Wallet Display]
+        TH[Transaction History]
+    end
+
+    DataSources --> LLM
+    LLM --> Backend
+    Backend --> Blockchain
+    Blockchain --> Frontend
+    Frontend --> Blockchain
 ```
 
 ---
 
-## 5. Yasal Çerçeve
+## 5. Legal Framework
 
-- Platform bir **tahmin platformudur** — kumar veya bahis değildir.
-- Kullanıcılar bilgiye dayalı tahmin yapar, şans eseri değil.
-- Spor Toto, İddaa — bunlar Türkiye'de yasal olan benzer sistemlerdir.
-- Ana sayfada disclaimer: "Bu bir tahmin platformudur. Kumar değildir."
-- İleride offshore entity (Curacao/BVI) değerlendirilebilir.
-- 18+ yaş sınırlaması (ileride uygulanabilir).
-
----
-
-## 6. Güvenlik
-
-- **Smart Contract Audit** — Deployment öncesi zorunlu
-- **Timelock** — Büyük withdrawal'lar için 24s gecikme
-- **Pause mekanizması** — Acil durumda platform durdurulabilir
-- **Multisig** — Vault contract owner adresi multisig olmalı (2/3 veya 3/5)
-- **Rate limiting** — Kullanıcı başına günlük bahis limiti
-- **Audit log** — Tüm işlemler PostgreSQL'de saklanır
+- The platform is a **prediction platform** — not gambling or betting.
+- Users make information-based predictions, not chance-based.
+- Disclaimer on main page: "This is a prediction platform. Not gambling."
+- Offshore entity (Curacao/BVI) may be considered in the future.
+- 18+ age restriction (may be applied in the future).
 
 ---
 
-## 7. Teknoloji Stack
+## 6. Security
 
-| Katman | Teknoloji |
-|--------|-----------|
-| Frontend | Next.js 16 + TailwindCSS + pm-turkish codebase |
+- **Smart Contract Audit** — Mandatory before deployment
+- **Timelock** — 24h delay for large withdrawals
+- **Pause Mechanism** — Platform can be stopped in emergencies
+- **Multisig** — Vault contract owner should be multisig (2/3 or 3/5)
+- **Rate Limiting** — Daily bet limit per user
+- **Audit Log** — All transactions stored in PostgreSQL
+
+---
+
+## 7. Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 16 + TailwindCSS |
 | Backend | Node.js + Express + PostgreSQL |
-| LLM | Qwen / GPT-4 + Fine-tune (custom prompt) |
+| LLM | Qwen / GPT-4 + Fine-tune |
 | Blockchain | Polygon (Chain ID: 137) |
 | Token | USDC (ERC-20) |
-| Smart Contract | Solidity (Vault pattern) |
-| Veri Kaynakları | Google Trends API, RSS Feeds, MGM API |
+| Smart Contract | Solidity 0.8.24 + OpenZeppelin 5.x |
+| Data Sources | Google Trends API, RSS Feeds, MGM API |
 | Hosting | Netlify (Frontend) + VPS/Cloud (Backend + DB) |
+| CI/CD | GitHub Actions |
 
 ---
 
-## 8. Geliştirme Fazları
+## 8. Development Phases
 
-| Faz | Süre | İçerik |
-|-----|------|--------|
-| **1** | Hafta 1-2 | Off-chain MVP: Fake crypto, event generator, bahis UI |
-| **2** | Hafta 3-4 | Polygon vault contract (deposit/withdrawal) |
-| **3** | Hafta 5-6 | LLM arbitrage + multi-source fact checking |
-| **4** | Hafta 7-8 | Beta launch (kullanıcı testi + feedback) |
-| **5** | Hafta 9-10 | Audit + production hardening |
-| **6** | Hafta 11+ | Public launch |
+| Phase | Duration | Content |
+|-------|----------|---------|
+| **1** | Week 1-2 | Off-chain MVP: Fake crypto, event generator, bet UI |
+| **2** | Week 3-4 | Polygon vault contract (deposit/withdrawal) |
+| **3** | Week 5-6 | LLM arbitrage + multi-source fact checking |
+| **4** | Week 7-8 | Beta launch (user testing + feedback) |
+| **5** | Week 9-10 | Audit + production hardening |
+| **6** | Week 11+ | Public launch |
 
 ---
 
-*Kaydedildi: 2026-04-05 22:23 GMT+3*
+## 9. Current Project Status
+
+### 9.1 Completed
+- [x] 3 Solidity contracts developed (TRDEFIVault, EventResolver, TRDEFIDepositManager)
+- [x] 66 tests passing (22 unit + 44 security-focused)
+- [x] Security audit completed (Slither: 60→42 findings, 30% reduction)
+- [x] CI/CD pipelines configured (ci.yml + deploy.yml)
+- [x] GitHub repository initialized and pushed
+- [x] Hardhat upgraded to 2.28.x with OpenZeppelin 5.x support
+- [x] viaIR compilation enabled for complex contracts
+
+### 9.2 In Progress
+- [ ] Polygon Amoy testnet deployment (blocked: insufficient testnet MATIC)
+- [ ] Frontend MVP development (Next.js + Wagmi/viem)
+- [ ] LLM integration for event resolution
+
+### 9.3 Blocked
+- [ ] Testnet deployment requires additional MATIC from faucets
+- [ ] Contract verification on Polygonscan pending deployment
+
+### 9.4 Risk Matrix
+
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|------------|
+| Smart Contract Vulnerability | High | Low | Audit + 66 security tests + Slither scan |
+| Oracle Manipulation | High | Medium | Multisig resolution + 24h challenge window |
+| Insufficient Liquidity | Medium | Medium | Draw rule + event cancellation |
+| Regulatory Changes | High | Low | Legal framework + disclaimer |
+| LLM Hallucination | Medium | Medium | Multi-source validation + fact checker |
+| Gas Price Spikes | Low | Low | Polygon network (~$0.002/tx) |
+
+---
+
+## 10. Deployment Checklist
+
+### Pre-Deployment
+- [ ] All 66 tests passing
+- [ ] Slither security scan completed
+- [ ] Manual code review completed
+- [ ] .env file configured with correct values
+- [ ] Deployer wallet funded with testnet MATIC
+- [ ] GitHub secrets configured (RPC URL, Private Key, API Key)
+
+### Deployment
+- [ ] Contracts compiled successfully
+- [ ] Deployment script executed
+- [ ] Contract addresses recorded
+- [ ] Contracts verified on Polygonscan
+- [ ] Owner transferred to multisig wallet
+
+### Post-Deployment
+- [ ] Frontend connected to deployed contracts
+- [ ] End-to-end testing completed
+- [ ] Monitoring setup (events, transactions)
+- [ ] Backup plan documented
+
+---
+
+*Last Updated: 2026-05-21*
