@@ -25,17 +25,6 @@ jobs:
       - name: Run tests
         run: npx hardhat test
 
-      - name: Debug secrets
-        env:
-          RPC_LEN: ${{ secrets.PMTURKISH }}
-          PK_LEN: ${{ secrets.PMTURKISH01 }}
-          API_LEN: ${{ secrets.PMTURKISH02 }}
-        run: |
-          echo "RPC_URL length: ${#RPC_LEN}"
-          echo "PRIVATE_KEY length: ${#PK_LEN}"
-          echo "API_KEY length: ${#API_LEN}"
-          echo "RPC_URL starts with: ${RPC_LEN:0:8}"
-
       - name: Deploy to Polygon Amoy
         env:
           POLYGON_RPC_URL: ${{ secrets.PMTURKISH }}
