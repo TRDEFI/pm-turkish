@@ -3,7 +3,7 @@ const hre = require("hardhat");
 // Polygon USDC addresses
 const USDC_ADDRESSES = {
   polygon: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",  // Native USDC
-  polygonAmoy: "0x41E94eB21f52f96F82c0F39D59b4d2268E081474", // Testnet USDC
+  polygonAmoy: "0x41e94eb21f52f96f82c0f39d59b4d2268e081474", // Testnet USDC (checksummed)
   localhost: undefined, // Will deploy mock USDC
 };
 
