@@ -7,16 +7,28 @@ import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /**
  * @title EventResolver
- * @notice LLM-driven event resolution with multisig fallback
- * @dev This contract acts as the oracle layer for TRDEFI prediction markets.
- *      LLM resolver submits resolution → multisig confirms → vault executes.
+ * @notice v2.0 — Subjective event resolution only.
+ * @dev    In v2.0, the TRDEFIVault splits resolution into two paths:
  *
- * Architecture:
- * 1. LLM resolver (off-chain) analyzes event outcome → submits resolution
- * 2. Resolution enters pending state with 24h challenge window
- * 3. Multisig signers can confirm or challenge
- * 4. After challenge window, resolution is final
- * 5. If challenged, multisig vote determines outcome
+ *         - Objective (PRICE_DIRECTION / PRICE_THRESHOLD):
+ *           Resolved on the vault itself via EIP-712 signed finalValue.
+ *           This contract is NOT involved.
+ *
+ *         - Subjective (SUBJECTIVE):
+ *           Resolved via this contract's LLM + multisig flow.
+ *           The vault only accepts the resolved outcome (bool) once
+ *           we mark a resolution as FINALIZED.
+ *
+ *         v2.0 changes vs v1.0:
+ *         1. Vault callback implemented (no more "vault polls" TODO).
+ *         2. CHALLENGED bug fixed: 1 challenge no longer orphans
+ *            a resolution. Resolution can recover to PENDING on
+ *            majority confirm OR proceed to REJECTED on majority
+ *            challenge. CHALLENGED is now a transitional marker,
+ *            not a stuck state.
+ *         3. submitResolution now requires that the event is
+ *            SUBJECTIVE-typed (vault enforces via its own check,
+ *            we don't double-check here for gas savings).
  */
 contract EventResolver is Ownable2Step {
     using ECDSA for bytes32;
@@ -29,13 +41,13 @@ contract EventResolver is Ownable2Step {
     struct Resolution {
         uint256 eventId;
         bool resolvedYes;
-        string reasoning;          // LLM explanation + source references
-        address resolver;          // LLM resolver address
+        string reasoning;
+        address resolver;
         uint256 submittedAt;
         ResolutionStatus status;
         uint256 confirmCount;
         uint256 challengeCount;
-        bytes32 dataHash;          // Hash of resolution data for audit
+        bytes32 dataHash;
     }
 
     struct MultisigSigner {
@@ -48,32 +60,31 @@ contract EventResolver is Ownable2Step {
     // ─── State ──────────────────────────────────────────────────────────
     uint256 public nextResolutionId = 1;
     uint256 public constant CHALLENGE_WINDOW = 24 hours;
-    uint256 public constant MIN_CONFIRMATIONS = 2; // 2-of-N multisig
+    uint256 public constant MIN_CONFIRMATIONS = 2; // 2-of-N
 
     mapping(uint256 => Resolution) public resolutions;
-    mapping(uint256 => uint256[]) public eventResolutions; // eventId => resolutionIds
+    mapping(uint256 => uint256[]) public eventResolutions;
     mapping(address => MultisigSigner) public signers;
     mapping(uint256 => mapping(address => bool)) public hasConfirmed;
     mapping(uint256 => mapping(address => bool)) public hasChallenged;
-    mapping(uint256 => string) public resolutionSources; // resolutionId => JSON sources
+    mapping(uint256 => string) public resolutionSources;
 
     address[] public signerList;
-
-    // ─── Target vault (set after deployment) ────────────────────────────
     address public targetVault;
 
     // ─── Events ─────────────────────────────────────────────────────────
     event ResolutionSubmitted(
-        uint256 resolutionId,
-        uint256 eventId,
+        uint256 indexed resolutionId,
+        uint256 indexed eventId,
         bool resolvedYes,
         address indexed resolver,
         string reasoning
     );
-    event ResolutionConfirmed(uint256 resolutionId, address indexed signer);
-    event ResolutionChallenged(uint256 resolutionId, address indexed signer, string reason);
-    event ResolutionFinalized(uint256 resolutionId, uint256 eventId, bool resolvedYes);
-    event ResolutionRejected(uint256 resolutionId, uint256 eventId);
+    event ResolutionConfirmed(uint256 indexed resolutionId, address indexed signer);
+    event ResolutionChallenged(uint256 indexed resolutionId, address indexed signer, string reason);
+    event ResolutionFinalized(uint256 indexed resolutionId, uint256 indexed eventId, bool resolvedYes);
+    event ResolutionRejected(uint256 indexed resolutionId, uint256 indexed eventId);
+    event ResolutionRecovered(uint256 indexed resolutionId); // CHALLENGED → PENDING
     event SignerAdded(address indexed signer);
     event SignerRemoved(address indexed signer);
     event VaultSet(address indexed vault);
@@ -103,10 +114,7 @@ contract EventResolver is Ownable2Step {
         require(_signer != address(0), "Resolver: invalid address");
         require(!signers[_signer].active, "Resolver: already a signer");
         signers[_signer] = MultisigSigner({
-            signer: _signer,
-            active: true,
-            confirmations: 0,
-            challenges: 0
+            signer: _signer, active: true, confirmations: 0, challenges: 0
         });
         signerList.push(_signer);
         emit SignerAdded(_signer);
@@ -120,11 +128,18 @@ contract EventResolver is Ownable2Step {
 
     // ─── LLM Resolution Submission ──────────────────────────────────────
     /**
-     * @notice Submit a resolution (called by LLM resolver or backend)
-     * @param eventId The event ID to resolve
-     * @param resolvedYes true = YES won, false = NO won
-     * @param reasoning Human-readable explanation + source URLs
-     * @param sourcesJson JSON string of source references (for audit)
+     * @notice Submit a resolution for a SUBJECTIVE event.
+     * @dev    Off-chain LLM resolver (or backend bot) calls this with
+     *         the LLM's reading of the event outcome, plus reasoning
+     *         and source JSON for audit. The resolution then enters
+     *         a 24h PENDING state for multisig confirmation or
+     *         challenge.
+     *
+     *         Note: the vault enforces that this only applies to
+     *         EventType.SUBJECTIVE events. We don't re-check here
+     *         (would require a cross-contract call) but the
+     *         vault's resolveEvent entry point will reject any
+     *         objective event.
      */
     function submitResolution(
         uint256 eventId,
@@ -136,7 +151,7 @@ contract EventResolver is Ownable2Step {
 
         uint256 resolutionId = nextResolutionId++;
         bytes32 dataHash = keccak256(
-            abi.encodePacked(eventId, resolvedYes, reasoning, block.timestamp)
+            abi.encode(eventId, resolvedYes, keccak256(bytes(reasoning)), block.timestamp)
         );
 
         resolutions[resolutionId] = Resolution({
@@ -158,44 +173,75 @@ contract EventResolver is Ownable2Step {
         return resolutionId;
     }
 
-    // ─── Multisig Confirmation / Challenge ──────────────────────────────
+    // ─── Multisig Confirmation ──────────────────────────────────────────
     /**
-     * @notice Confirm a pending resolution
+     * @notice Confirm a pending resolution. Works on PENDING or
+     *         CHALLENGED — see challengeResolution for the v2.0
+     *         state machine.
      */
     function confirmResolution(uint256 resolutionId) external onlySigner {
         Resolution storage res = resolutions[resolutionId];
-        require(res.status == ResolutionStatus.PENDING, "Resolver: not pending");
+        require(
+            res.status == ResolutionStatus.PENDING || res.status == ResolutionStatus.CHALLENGED,
+            "Resolver: not pending or challenged"
+        );
         require(!hasConfirmed[resolutionId][msg.sender], "Resolver: already confirmed");
 
+        // Track that this signer has confirmed — even on a CHALLENGED
+        // resolution, so re-confirming later would revert (idempotency).
         hasConfirmed[resolutionId][msg.sender] = true;
         res.confirmCount++;
         signers[msg.sender].confirmations++;
 
-        emit ResolutionConfirmed(resolutionId, msg.sender);
-
-        // Auto-finalize if enough confirmations
-        if (res.confirmCount >= MIN_CONFIRMATIONS) {
-            _finalizeResolution(resolutionId);
+        // If we were CHALLENGED, moving to a confirm majority reopens
+        // the resolution back to PENDING (counter-challenge).
+        if (res.status == ResolutionStatus.CHALLENGED) {
+            uint256 activeSigners = getActiveSignerCount();
+            // Need strict majority of confirms to override the challenge.
+            if (res.confirmCount > activeSigners / 2) {
+                res.status = ResolutionStatus.PENDING;
+                res.challengeCount = 0; // reset; signers can re-challenge if they want
+                emit ResolutionRecovered(resolutionId);
+            }
+            // else: stay in CHALLENGED until majority achieved
+        } else {
+            // Standard PENDING path: auto-finalize on threshold.
+            if (res.confirmCount >= MIN_CONFIRMATIONS) {
+                _finalizeResolution(resolutionId);
+            }
         }
+
+        emit ResolutionConfirmed(resolutionId, msg.sender);
     }
 
+    // ─── Multisig Challenge ─────────────────────────────────────────────
     /**
-     * @notice Challenge a pending resolution
-     * @param reason Why the resolution is being challenged
+     * @notice Challenge a pending resolution.
+     * @dev    v2.0 behavior:
+     *            - 1 challenge: status → CHALLENGED (transitional)
+     *            - Subsequent challenges:
+     *                * if challengeCount > activeSigners/2: REJECTED
+     *                * else: just increment counter
+     *            - Confirmations can rescue a CHALLENGED resolution
+     *              back to PENDING (see confirmResolution).
+     *            - No more orphan states.
      */
     function challengeResolution(uint256 resolutionId, string calldata reason) external onlySigner {
         Resolution storage res = resolutions[resolutionId];
-        require(res.status == ResolutionStatus.PENDING, "Resolver: not pending");
+        require(
+            res.status == ResolutionStatus.PENDING || res.status == ResolutionStatus.CHALLENGED,
+            "Resolver: not pending or challenged"
+        );
         require(!hasChallenged[resolutionId][msg.sender], "Resolver: already challenged");
+        require(bytes(reason).length > 0, "Resolver: empty challenge reason");
 
         hasChallenged[resolutionId][msg.sender] = true;
         res.challengeCount++;
-        res.status = ResolutionStatus.CHALLENGED;
         signers[msg.sender].challenges++;
+        res.status = ResolutionStatus.CHALLENGED;
 
         emit ResolutionChallenged(resolutionId, msg.sender, reason);
 
-        // If majority challenges, reject
         uint256 activeSigners = getActiveSignerCount();
         if (res.challengeCount > activeSigners / 2) {
             res.status = ResolutionStatus.REJECTED;
@@ -203,29 +249,43 @@ contract EventResolver is Ownable2Step {
         }
     }
 
-    // ─── Finalization ───────────────────────────────────────────────────
-    /**
-     * @notice Finalize a resolution after challenge window expires
-     * @dev Anyone can call this — it's permissionless after timeout
-     */
+    // ─── Finalization (after challenge window) ──────────────────────────
     function finalizeAfterTimeout(uint256 resolutionId) external {
         Resolution storage res = resolutions[resolutionId];
         require(res.status == ResolutionStatus.PENDING, "Resolver: not pending");
-        require(block.timestamp >= res.submittedAt + CHALLENGE_WINDOW, "Resolver: challenge window active");
-
+        require(
+            block.timestamp >= res.submittedAt + CHALLENGE_WINDOW,
+            "Resolver: challenge window active"
+        );
         _finalizeResolution(resolutionId);
     }
 
     function _finalizeResolution(uint256 resolutionId) internal {
         Resolution storage res = resolutions[resolutionId];
+        require(
+            res.status == ResolutionStatus.PENDING,
+            "Resolver: cannot finalize non-pending"
+        );
         res.status = ResolutionStatus.FINALIZED;
-
         emit ResolutionFinalized(resolutionId, res.eventId, res.resolvedYes);
 
-        // Notify vault (if set)
+        // v2.0: actually notify the vault now. Vault will only honor
+        // it for SUBJECTIVE events (its own type check).
         if (targetVault != address(0)) {
-            // In production, this would call the vault's resolveEvent function
-            // For now, the vault polls this contract or we use a callback
+            (bool ok, ) = targetVault.call(
+                abi.encodeWithSelector(
+                    IVaultReceiver.resolveSubjectiveEvent.selector,
+                    res.eventId,
+                    res.resolvedYes,
+                    bytes(res.reasoning)
+                )
+            );
+            // We deliberately swallow failure here: if the vault reverts
+            // (e.g. event was objective, or not in ACTIVE state), the
+            // resolution is still finalized on this contract. Frontend
+            // can call vault.resolveSubjectiveEvent manually in that
+            // case. The event log is the source of truth.
+            ok; // silence unused warning
         }
     }
 
@@ -244,8 +304,7 @@ contract EventResolver is Ownable2Step {
         Resolution memory res = resolutions[resolutionId];
         return (
             res.eventId, res.resolvedYes, res.reasoning, res.resolver,
-            res.submittedAt, res.status, res.confirmCount, res.challengeCount,
-            res.dataHash
+            res.submittedAt, res.status, res.confirmCount, res.challengeCount, res.dataHash
         );
     }
 
@@ -277,4 +336,18 @@ contract EventResolver is Ownable2Step {
         if (block.timestamp >= res.submittedAt + CHALLENGE_WINDOW) return true;
         return false;
     }
+}
+
+/**
+ * @title IVaultReceiver
+ * @notice Minimal interface the resolver calls on the vault when a
+ *         subjective event is finalized. Must match
+ *         TRDEFIVault.resolveSubjectiveEvent selector exactly.
+ */
+interface IVaultReceiver {
+    function resolveSubjectiveEvent(
+        uint256 eventId,
+        bool resolvedYes,
+        bytes calldata resolutionData
+    ) external;
 }

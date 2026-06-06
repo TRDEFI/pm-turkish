@@ -64,7 +64,7 @@ describe("TRDEFIVault - Security Tests", function () {
 
     it("Should prevent reentrancy on claimWinnings", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("Reentrancy test", "test", deadline, 0);
+      await vault.createEvent("Reentrancy test", "test", deadline, 0, 0, 0, 0);
 
       await vault.connect(user1).placeBet(1, 0, BET_AMOUNT);
       await vault.connect(user2).placeBet(1, 1, BET_AMOUNT);
@@ -93,13 +93,13 @@ describe("TRDEFIVault - Security Tests", function () {
     it("Should prevent non-owner from creating events", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
       await expect(
-        vault.connect(user1).createEvent("Unauthorized?", "test", deadline, 0)
+        vault.connect(user1).createEvent("Unauthorized?", "test", deadline, 0, 0, 0, 0)
       ).to.be.revertedWithCustomError(vault, "OwnableUnauthorizedAccount");
     });
 
     it("Should prevent non-resolver from resolving events", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("Access test", "test", deadline, 0);
+      await vault.createEvent("Access test", "test", deadline, 0, 0, 0, 0);
 
       await expect(
         vault.connect(user1).resolveEvent(1, true, "Unauthorized")
@@ -138,7 +138,7 @@ describe("TRDEFIVault - Security Tests", function () {
       await vault.setEventResolver(await resolver.getAddress());
 
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("Resolver test", "test", deadline, 0);
+      await vault.createEvent("Resolver test", "test", deadline, 0, 0, 0, 0);
 
       // EventResolver contract itself should be able to call resolveEvent
       // (In production, EventResolver would call this after finalization)
@@ -168,7 +168,7 @@ describe("TRDEFIVault - Security Tests", function () {
 
     it("Should reject bet at exact deadline timestamp", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 60;
-      await vault.createEvent("Deadline edge", "test", deadline, 0);
+      await vault.createEvent("Deadline edge", "test", deadline, 0, 0, 0, 0);
 
       // Advance time to exactly deadline
       await ethers.provider.send("evm_increaseTime", [60]);
@@ -182,7 +182,7 @@ describe("TRDEFIVault - Security Tests", function () {
 
     it("Should allow resolve at exact deadline timestamp", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 60;
-      await vault.createEvent("Resolve edge", "test", deadline, 0);
+      await vault.createEvent("Resolve edge", "test", deadline, 0, 0, 0, 0);
 
       await vault.connect(user1).placeBet(1, 0, BET_AMOUNT);
       await vault.connect(user2).placeBet(1, 1, BET_AMOUNT);
@@ -199,7 +199,7 @@ describe("TRDEFIVault - Security Tests", function () {
 
     it("Should handle minimum bet correctly", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("Min bet test", "test", deadline, 0);
+      await vault.createEvent("Min bet test", "test", deadline, 0, 0, 0, 0);
 
       // Minimum bet should work
       await vault.connect(user1).placeBet(1, 0, MIN_BET);
@@ -212,7 +212,7 @@ describe("TRDEFIVault - Security Tests", function () {
 
     it("Should reject bets exceeding MAX_BET", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("Max bet test", "test", deadline, 0);
+      await vault.createEvent("Max bet test", "test", deadline, 0, 0, 0, 0);
 
       const MAX_BET = ethers.parseUnits("100000", 6);
       await expect(
@@ -222,7 +222,7 @@ describe("TRDEFIVault - Security Tests", function () {
 
     it("Should handle event with max 7-day deadline", async function () {
       const maxDeadline = (await ethers.provider.getBlock("latest")).timestamp + 7 * 24 * 3600;
-      await vault.createEvent("Max deadline", "test", maxDeadline, 0);
+      await vault.createEvent("Max deadline", "test", maxDeadline, 0, 0, 0, 0);
 
       const event = await vault.getEventDetails(1);
       expect(event.deadline).to.equal(maxDeadline);
@@ -231,20 +231,20 @@ describe("TRDEFIVault - Security Tests", function () {
     it("Should reject event with deadline > 7 days", async function () {
       const tooFarDeadline = (await ethers.provider.getBlock("latest")).timestamp + 8 * 24 * 3600;
       await expect(
-        vault.createEvent("Too far", "test", tooFarDeadline, 0)
+        vault.createEvent("Too far", "test", tooFarDeadline, 0, 0, 0, 0)
       ).to.be.revertedWith("TRDEFI: deadline max 7 days");
     });
 
     it("Should reject empty question", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
       await expect(
-        vault.createEvent("", "test", deadline, 0)
+        vault.createEvent("", "test", deadline, 0, 0, 0, 0)
       ).to.be.revertedWith("TRDEFI: empty question");
     });
 
     it("Should handle multiple bets from same user on same event", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("Multi bet test", "test", deadline, 0);
+      await vault.createEvent("Multi bet test", "test", deadline, 0, 0, 0, 0);
 
       await vault.connect(user1).placeBet(1, 0, BET_AMOUNT);
       await vault.connect(user1).placeBet(1, 0, BET_AMOUNT);
@@ -259,8 +259,8 @@ describe("TRDEFIVault - Security Tests", function () {
 
     it("Should correctly lock balance for multiple active bets", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("Lock test 1", "test", deadline, 0);
-      await vault.createEvent("Lock test 2", "test", deadline, 0);
+      await vault.createEvent("Lock test 1", "test", deadline, 0, 0, 0, 0);
+      await vault.createEvent("Lock test 2", "test", deadline, 0, 0, 0, 0);
 
       await vault.connect(user1).placeBet(1, 0, BET_AMOUNT);
       await vault.connect(user1).placeBet(2, 0, BET_AMOUNT);
@@ -274,7 +274,7 @@ describe("TRDEFIVault - Security Tests", function () {
 
     it("Should unlock balance after event resolution", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("Unlock test", "test", deadline, 0);
+      await vault.createEvent("Unlock test", "test", deadline, 0, 0, 0, 0);
 
       await vault.connect(user1).placeBet(1, 0, BET_AMOUNT);
       await vault.connect(user2).placeBet(1, 1, BET_AMOUNT);
@@ -297,7 +297,7 @@ describe("TRDEFIVault - Security Tests", function () {
   describe("Oracle Manipulation Protection", function () {
     it("Should prevent resolver from changing resolution after submit", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("Oracle test", "test", deadline, 0);
+      await vault.createEvent("Oracle test", "test", deadline, 0, 0, 0, 0);
 
       await vault.connect(user1).placeBet(1, 0, BET_AMOUNT);
       await vault.connect(user2).placeBet(1, 1, BET_AMOUNT);
@@ -316,7 +316,7 @@ describe("TRDEFIVault - Security Tests", function () {
 
     it("Should prevent resolution before deadline", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("Early resolve", "test", deadline, 0);
+      await vault.createEvent("Early resolve", "test", deadline, 0, 0, 0, 0);
 
       await expect(
         vault.connect(resolverSigner).resolveEvent(1, true, "Too early")
@@ -325,7 +325,7 @@ describe("TRDEFIVault - Security Tests", function () {
 
     it("Should require both sides to have bets for valid resolution", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("One side only", "test", deadline, 0);
+      await vault.createEvent("One side only", "test", deadline, 0, 0, 0, 0);
 
       // Only YES bets
       await vault.connect(user1).placeBet(1, 0, BET_AMOUNT);
@@ -345,7 +345,7 @@ describe("TRDEFIVault - Security Tests", function () {
   describe("Front-Running Resistance", function () {
     it("Should not allow bet after deadline even if submitted before", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 2;
-      await vault.createEvent("Front-run test", "test", deadline, 0);
+      await vault.createEvent("Front-run test", "test", deadline, 0, 0, 0, 0);
 
       // Advance time past deadline
       await ethers.provider.send("evm_increaseTime", [3]);
@@ -394,7 +394,7 @@ describe("TRDEFIVault - Security Tests", function () {
       // After first challenge, status is CHALLENGED (not PENDING), so second fails
       await expect(
         resolver.connect(owner).challengeResolution(1, "Second challenge")
-      ).to.be.revertedWith("Resolver: not pending");
+      ).to.be.revertedWith("Resolver: already challenged");
     });
 
     it("Should reject resolution with empty reasoning", async function () {
@@ -476,7 +476,7 @@ describe("TRDEFIVault - Security Tests", function () {
   describe("Emergency Functions", function () {
     it("Should allow owner to cancel active event", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("Cancel test", "test", deadline, 0);
+      await vault.createEvent("Cancel test", "test", deadline, 0, 0, 0, 0);
 
       await vault.connect(user1).placeBet(1, 0, BET_AMOUNT);
 
@@ -487,7 +487,7 @@ describe("TRDEFIVault - Security Tests", function () {
 
     it("Should allow users to claim refund on cancelled event", async function () {
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("Cancel refund", "test", deadline, 0);
+      await vault.createEvent("Cancel refund", "test", deadline, 0, 0, 0, 0);
 
       await vault.connect(user1).placeBet(1, 0, BET_AMOUNT);
 
@@ -513,7 +513,7 @@ describe("TRDEFIVault - Security Tests", function () {
 
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
       await expect(
-        vault.createEvent("Paused test", "test", deadline, 0)
+        vault.createEvent("Paused test", "test", deadline, 0, 0, 0, 0)
       ).to.be.revertedWithCustomError(vault, "EnforcedPause");
 
       await expect(
@@ -526,7 +526,7 @@ describe("TRDEFIVault - Security Tests", function () {
       await vault.unpause();
 
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("Unpaused test", "test", deadline, 0);
+      await vault.createEvent("Unpaused test", "test", deadline, 0, 0, 0, 0);
       const event = await vault.getEventDetails(1);
       expect(event.status).to.equal(0); // ACTIVE
     });
@@ -539,7 +539,7 @@ describe("TRDEFIVault - Security Tests", function () {
 
       // Create multiple events and place bets
       for (let i = 0; i < 10; i++) {
-        await vault.createEvent(`Gas test ${i}`, "test", deadline, 0);
+        await vault.createEvent(`Gas test ${i}`, "test", deadline, 0, 0, 0, 0);
         await vault.connect(user1).placeBet(i + 1, 0, MIN_BET);
       }
 
@@ -568,7 +568,7 @@ describe("TRDEFIVault - Security Tests", function () {
       // This tests the edge case where totalWinningBets could be zero
       // In practice, this shouldn't happen because at least one bet must exist
       const deadline = (await ethers.provider.getBlock("latest")).timestamp + 86400;
-      await vault.createEvent("Zero div test", "test", deadline, 0);
+      await vault.createEvent("Zero div test", "test", deadline, 0, 0, 0, 0);
 
       await vault.connect(user1).placeBet(1, 0, BET_AMOUNT);
       await vault.connect(user2).placeBet(1, 1, BET_AMOUNT);
