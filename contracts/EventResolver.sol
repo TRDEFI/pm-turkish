@@ -193,6 +193,11 @@ contract EventResolver is Ownable2Step {
         res.confirmCount++;
         signers[msg.sender].confirmations++;
 
+        // Emit confirmation event BEFORE any external calls so that
+        // off-chain indexers see events in the order they were
+        // produced. (Avoids Slither reentrancy-events false positive.)
+        emit ResolutionConfirmed(resolutionId, msg.sender);
+
         // If we were CHALLENGED, moving to a confirm majority reopens
         // the resolution back to PENDING (counter-challenge).
         if (res.status == ResolutionStatus.CHALLENGED) {
@@ -210,8 +215,6 @@ contract EventResolver is Ownable2Step {
                 _finalizeResolution(resolutionId);
             }
         }
-
-        emit ResolutionConfirmed(resolutionId, msg.sender);
     }
 
     // ─── Multisig Challenge ─────────────────────────────────────────────
