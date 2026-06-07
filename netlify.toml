@@ -1,5 +1,6 @@
 [build]
-  command = "next build"
+  base = "web"
+  command = "npm run build"
   publish = "out"
 
 [functions]

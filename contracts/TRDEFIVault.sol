@@ -305,7 +305,7 @@ contract TRDEFIVault is Ownable2Step, Pausable, ReentrancyGuard {
 
     function getUserLockedBalance(address _user) public view returns (uint256) {
         uint256[] memory ids = userBets[_user];
-        uint256 locked;
+        uint256 locked = 0;
         uint256 len = ids.length;
         for (uint256 i = 0; i < len; i++) {
             Bet storage bet = bets[ids[i]];
